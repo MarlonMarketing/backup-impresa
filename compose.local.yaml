@@ -1,0 +1,4 @@
+services:
+  backup-impresa:
+    image: backup-impresa:local
+    build: .

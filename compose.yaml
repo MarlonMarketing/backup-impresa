@@ -1,0 +1,50 @@
+services:
+  backup-impresa:
+    image: ghcr.io/marlonmarketing/backup-impresa:${BACKUP_VERSION:-0.1.0}
+    container_name: backup-impresa
+    init: true
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 512m
+    cpus: '1.0'
+    tmpfs: [/tmp:size=64m,mode=1777]
+    ports:
+      - '${BIND_ADDRESS:-127.0.0.1}:9899:9899'
+    environment:
+      TZ: ${TZ:-UTC}
+      TARGET_ID: ${TARGET_ID:-backup-usb-v1}
+      TARGET_NAME: ${TARGET_NAME:-USB backup}
+      MIN_FREE_GB: ${MIN_FREE_GB:-10}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      NOTIFICATION_LANGUAGE: ${NOTIFICATION_LANGUAGE:-en}
+      NOTIFY_SUCCESS: ${NOTIFY_SUCCESS:-false}
+      BACKUP_SOURCES: '[{"id":"files","name":"Files","path":"/sources/files","requiredPaths":[".backup-impresa-source"]}]'
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      MAIL_TO: ${MAIL_TO:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      RESULT_WEBHOOK_URL: ${RESULT_WEBHOOK_URL:-}
+      RESULT_WEBHOOK_TOKEN: ${RESULT_WEBHOOK_TOKEN:-}
+    volumes:
+      - app-data:/data
+      - type: bind
+        source: ${SOURCE_PATH:-/srv/backup-impresa/source}
+        target: /sources/files
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: ${TARGET_PATH:-/srv/backup-impresa/target}
+        target: /destinations/usb
+        bind: {create_host_path: false}
+      - type: bind
+        source: ${RESTORE_PATH:-/srv/backup-impresa/restores}
+        target: /restores
+        bind: {create_host_path: false}
+volumes:
+  app-data:
