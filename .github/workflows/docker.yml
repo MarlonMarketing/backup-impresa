@@ -17,7 +17,9 @@ jobs:
       - name: Integration and safety tests
         run: docker run --rm --network none --memory 512m --cpus 1 --entrypoint node backup-impresa-ci --test test/core.test.mjs test/server.test.mjs test/i18n.test.mjs
       - name: Validate Compose
-        run: docker compose config --quiet
+        run: |
+          docker compose config --quiet
+          docker compose config --format json | node --input-type=module -e 'import fs from "node:fs"; import assert from "node:assert/strict"; const config=JSON.parse(fs.readFileSync(0,"utf8")); assert.deepEqual(config.services["backup-impresa"].tmpfs,["/tmp:size=64m,mode=1777"]);'
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '24'
