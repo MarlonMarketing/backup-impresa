@@ -24,11 +24,22 @@ A self-hosted rsync dashboard for **readable file copies**, replaced-file versio
 
 It is not a frontend for Proxmox, Backrest or restic. Keep those tools for their own backup jobs.
 
+## Choose your installation
+
+| Method | Requirements | Guide |
+| --- | --- | --- |
+| Portainer | Docker host managed by Portainer | Steps below |
+| Docker Compose | Docker Engine + Compose v2; no Portainer | [Compose guide](docs/INSTALL.md#2a-docker-compose-without-portainer) |
+| Docker CLI | Docker Engine; no Compose or Portainer | [Complete docker run command](docs/INSTALL.md#2b-docker-cli-without-compose) |
+| Native VPS / Linux | Node.js 22+, npm, rsync and systemd; no Docker | [Native installer and service](docs/INSTALL.md#2c-native-vpslinux-without-docker) |
+
+Step-by-step installation: **[English](docs/INSTALL.md) · [Italiano](docs/INSTALL.it.md) · [Español](docs/INSTALL.es.md)**. Public VPS access uses an SSH tunnel or HTTPS; loopback binding is the default. Native installer: `sudo bash deploy/install-native.sh` from a reviewed release checkout, after installing prerequisites. It leaves the service stopped for storage/configuration setup.
+
 ## Install with Portainer
 
 1. Prepare three host directories: source, destination and restores. On an external drive, **verify the actual disk is mounted before creating directories or markers**. Check with `findmnt -T /your/destination`. Do not create a destination marker on an unmounted fallback directory.
 2. In the source directory create an empty `.backup-impresa-source`. In the destination directory create `.backup-impresa-target` containing `backup-usb-v1` followed by a newline (or your chosen `TARGET_ID`). These markers are safety checks; they do not replace mount monitoring.
-3. In Portainer open **Stacks → Add stack → Repository**. Use `https://github.com/MarlonMarketing/backup-impresa`, reference `refs/tags/v0.1.0`, Compose path `compose.yaml`.
+3. In Portainer open **Stacks → Add stack → Repository**. Use `https://github.com/MarlonMarketing/backup-impresa`, reference `refs/tags/v0.1.1`, Compose path `compose.yaml`.
 4. Set `SOURCE_PATH`, `TARGET_PATH`, `RESTORE_PATH`, `TARGET_ID`, `TZ` and `BIND_ADDRESS` under environment variables. Use the server's LAN address for remote LAN access. Default `127.0.0.1` accepts access from the host only. Container root needs source read and destination/restore write permissions; an unprivileged LXC has its own UID mapping. Do not fix this by making all files world-writable.
 5. Deploy. In the container console run `cat /data/setup-token`. Open `http://YOUR_SERVER:9899`, select your language and create your account with that token. The token file is removed after setup. Do not publish it.
 6. Create a job with schedules disabled. Run **Dry run → Copy now → Verify → recover a test file**, then compare the restored file with the original. Only then enable schedules.
@@ -44,7 +55,7 @@ With Docker Engine and Compose v2 installed, prepare the directories/markers des
 docker compose -f compose.yaml -f compose.local.yaml up -d --build
 ```
 
-Published images are versioned at `ghcr.io/marlonmarketing/backup-impresa:0.1.0`. The supplied image is Linux amd64. Other architectures require a local build. Versions are deliberately pinned; updates are manual.
+Published images are versioned at `ghcr.io/marlonmarketing/backup-impresa:0.1.1`. The supplied image is Linux amd64. Other architectures require a local build. Versions are deliberately pinned; updates are manual.
 
 ## Copy and version semantics
 
@@ -70,5 +81,7 @@ docker run --rm --network none --entrypoint node backup-impresa-test --test test
 ```
 
 Tests cover actual rsync copies, multiple replaced-file versions, corruption, recovery, path boundaries, authentication/CSRF, destination identity, free-space refusal, scheduling and translation catalogue parity. GitHub Actions repeats them before publishing a tagged image. Tool output and low-level system diagnostics retain their original language. See [CONTRIBUTING](CONTRIBUTING.md) and [SECURITY](SECURITY.md).
+
+GitHub Actions also installs the native package on an isolated systemd runner, starts it as the dedicated service user, checks the source is mounted read-only and exercises an actual copy, checksum verification and restore through the HTTP API.
 
 MIT licensed. Contributions and translations are welcome through issues and pull requests.

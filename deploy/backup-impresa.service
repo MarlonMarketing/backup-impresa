@@ -1,0 +1,37 @@
+[Unit]
+Description=Backup Impresa readable file backup dashboard
+After=network-online.target
+Wants=network-online.target
+RequiresMountsFor=/srv/backup-impresa/source /srv/backup-impresa/target /srv/backup-impresa/restores
+ConditionPathExists=/srv/backup-impresa/source/.backup-impresa-source
+ConditionPathExists=/srv/backup-impresa/target/.backup-impresa-target
+
+[Service]
+Type=simple
+User=backup-impresa
+Group=backup-impresa
+WorkingDirectory=/opt/backup-impresa/current
+Environment=NODE_ENV=production
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+EnvironmentFile=/etc/backup-impresa/backup-impresa.env
+ExecStart=/usr/bin/env node /opt/backup-impresa/current/server.mjs
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=35
+UMask=0077
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+BindReadOnlyPaths=/srv/backup-impresa/source:/sources/files
+ReadWritePaths=/var/lib/backup-impresa /srv/backup-impresa/target /srv/backup-impresa/restores
+
+[Install]
+WantedBy=multi-user.target

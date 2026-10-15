@@ -18,6 +18,31 @@ jobs:
         run: docker run --rm --network none --memory 512m --cpus 1 --entrypoint node backup-impresa-ci --test test/core.test.mjs test/server.test.mjs test/i18n.test.mjs
       - name: Validate Compose
         run: docker compose config --quiet
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - name: Native systemd install and recovery smoke test
+        run: |
+          set -euo pipefail
+          sudo ln -sf "$(command -v node)" /usr/local/bin/node
+          bash -n deploy/install-native.sh
+          sudo env PATH="$PATH" bash deploy/install-native.sh
+          sudo install -d -m 0750 -o backup-impresa -g backup-impresa /srv/backup-impresa/source /srv/backup-impresa/target /srv/backup-impresa/restores
+          sudo touch /srv/backup-impresa/source/.backup-impresa-source
+          printf 'Native installation test\n' | sudo tee /srv/backup-impresa/source/sample.txt >/dev/null
+          printf 'backup-usb-v1\n' | sudo tee /srv/backup-impresa/target/.backup-impresa-target >/dev/null
+          sudo chmod 0644 /srv/backup-impresa/source/sample.txt /srv/backup-impresa/source/.backup-impresa-source /srv/backup-impresa/target/.backup-impresa-target
+          sudo sed -i 's/^MIN_FREE_GB=.*/MIN_FREE_GB=0/' /etc/backup-impresa/backup-impresa.env
+          sudo systemd-analyze verify /etc/systemd/system/backup-impresa.service
+          sudo systemctl start backup-impresa
+          sudo env PATH="$PATH" node test/native-smoke.mjs
+          pid=$(systemctl show backup-impresa -p MainPID --value)
+          sudo nsenter --target "$pid" --mount runuser -u backup-impresa -- sh -c 'test ! -w /sources/files'
+      - name: Native service diagnostics and cleanup
+        if: always()
+        run: |
+          sudo journalctl -u backup-impresa -n 30 --no-pager || true
+          sudo systemctl stop backup-impresa || true
       - name: Publish versioned image
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         env:

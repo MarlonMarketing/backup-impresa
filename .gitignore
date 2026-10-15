@@ -11,3 +11,5 @@ data/
 restores/
 .env.*
 !.env.example
+docker.env
+native.env
