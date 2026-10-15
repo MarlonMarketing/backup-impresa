@@ -1,13 +1,17 @@
 {
   "name": "backup-impresa",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "type": "module",
   "scripts": {
     "start": "node server.mjs",
     "test": "node --test test/*.test.mjs"
   },
-  "engines": { "node": ">=22" },
-  "dependencies": { "nodemailer": "10.1.2" },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "nodemailer": "10.1.1"
+  },
   "license": "MIT"
 }
