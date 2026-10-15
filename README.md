@@ -39,7 +39,7 @@ Step-by-step installation: **[English](docs/INSTALL.md) · [Italiano](docs/INSTA
 
 1. Prepare three host directories: source, destination and restores. On an external drive, **verify the actual disk is mounted before creating directories or markers**. Check with `findmnt -T /your/destination`. Do not create a destination marker on an unmounted fallback directory.
 2. In the source directory create an empty `.backup-impresa-source`. In the destination directory create `.backup-impresa-target` containing `backup-usb-v1` followed by a newline (or your chosen `TARGET_ID`). These markers are safety checks; they do not replace mount monitoring.
-3. In Portainer open **Stacks → Add stack → Repository**. Use `https://github.com/MarlonMarketing/backup-impresa`, reference `refs/tags/v0.1.3`, Compose path `compose.yaml`.
+3. In Portainer open **Stacks → Add stack → Repository**. Use `https://github.com/MarlonMarketing/backup-impresa`, reference `refs/tags/v0.1.4`, Compose path `compose.yaml`.
 4. Set `SOURCE_PATH`, `TARGET_PATH`, `RESTORE_PATH`, `TARGET_ID`, `TZ` and `BIND_ADDRESS` under environment variables. Use the server's LAN address for remote LAN access. Default `127.0.0.1` accepts access from the host only. Container root needs source read and destination/restore write permissions; an unprivileged LXC has its own UID mapping. Do not fix this by making all files world-writable.
 5. Deploy. In the container console run `cat /data/setup-token`. Open `http://YOUR_SERVER:9899`, select your language and create your account with that token. The token file is removed after setup. Do not publish it.
 6. Create a job with schedules disabled. Run **Dry run → Copy now → Verify → recover a test file**, then compare the restored file with the original. Only then enable schedules.
@@ -55,7 +55,7 @@ With Docker Engine and Compose v2 installed, prepare the directories/markers des
 docker compose -f compose.yaml -f compose.local.yaml up -d --build
 ```
 
-Published images are versioned at `ghcr.io/marlonmarketing/backup-impresa:0.1.3`. The supplied image is Linux amd64. Other architectures require a local build. Versions are deliberately pinned; updates are manual.
+Published images are versioned at `ghcr.io/marlonmarketing/backup-impresa:0.1.4`. The supplied image is Linux amd64. Other architectures require a local build. Versions are deliberately pinned; updates are manual.
 
 ## Copy and version semantics
 

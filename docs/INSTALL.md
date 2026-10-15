@@ -30,7 +30,7 @@ The destination marker must match `TARGET_ID`. Never create it on a fallback dir
 Requires Docker Engine and the Compose v2 plugin. Clone the versioned release:
 
 ```sh
-git clone --branch v0.1.3 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
+git clone --branch v0.1.4 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
 cd backup-impresa
 cp .env.example .env
 chmod 600 .env
@@ -67,7 +67,7 @@ docker run -d --name backup-impresa \
   --mount type=bind,source=/srv/backup-impresa/source,target=/sources/files,readonly \
   --mount type=bind,source=/srv/backup-impresa/target,target=/destinations/usb \
   --mount type=bind,source=/srv/backup-impresa/restores,target=/restores \
-  ghcr.io/marlonmarketing/backup-impresa:0.1.3
+  ghcr.io/marlonmarketing/backup-impresa:0.1.4
 docker logs --tail 50 backup-impresa
 docker exec backup-impresa cat /data/setup-token
 ```
@@ -91,7 +91,7 @@ Install prerequisites using your OS/vendor's supported packages; the installer d
 sudo bash deploy/install-native.sh
 ```
 
-The installer creates service account `backup-impresa`, installs application files in `/opt/backup-impresa/releases/0.1.3`, creates the `current` link, installs dependencies as that account with npm scripts disabled, and installs the unit. **It does not start the service, create storage markers or overwrite an existing installation.** A failed dependency installation can leave a partial release directory; inspect it before retrying. Environment file is `/etc/backup-impresa/backup-impresa.env` (root-only); persistent application state is `/var/lib/backup-impresa`.
+The installer creates service account `backup-impresa`, installs application files in `/opt/backup-impresa/releases/0.1.4`, creates the `current` link, installs dependencies as that account with npm scripts disabled, and installs the unit. **It does not start the service, create storage markers or overwrite an existing installation.** A failed dependency installation can leave a partial release directory; inspect it before retrying. Environment file is `/etc/backup-impresa/backup-impresa.env` (root-only); persistent application state is `/var/lib/backup-impresa`.
 
 Prepare the three storage directories from section 1. For a new, empty test layout only, after the account exists:
 

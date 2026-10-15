@@ -10,6 +10,27 @@ import net from 'node:net';
 import {fileURLToPath} from 'node:url';
 import {setTimeout as delay} from 'node:timers/promises';
 
+test('watchdog checks enabled jobs with copy history and sends one stale alert per day',async t=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'backup-watchdog-'));
+  t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+  const sent=[];
+  const app=createApplication({quiet:true,sources:[],env:{DATA_DIR:root,RESTORE_ROOT:path.join(root,'restore')},notifier:{send:async run=>sent.push(run)}});
+  t.after(()=>app.close());
+  const now=new Date('2026-10-15T12:00:00Z');
+  app.store.state.jobs=[{id:'stale',name:'Stale',enabled:true,lastScheduled:{copy:'2026-10-15'},schedule:'00:00',verifyEnabled:false,createdAt:'2026-10-01T00:00:00Z'}];
+  app.store.state.runs=[{jobId:'stale',mode:'copy',status:'success',finishedAt:'2026-10-12T00:00:00Z'}];
+  await app.tick(now);
+  assert.equal(sent.length,1);
+  assert.equal(sent[0].mode,'monitor');
+  assert.equal(sent[0].status,'failed');
+  await app.tick(now);
+  assert.equal(sent.length,1);
+  app.store.state.jobs[0].lastStaleAlert=null;
+  app.store.state.runs.unshift({jobId:'stale',mode:'copy',status:'success',finishedAt:now.toISOString()});
+  await app.tick(now);
+  assert.equal(sent.length,1);
+});
+
 test('native entrypoint starts through a release symlink',async t=>{
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'backup-symlink-'));
   t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
