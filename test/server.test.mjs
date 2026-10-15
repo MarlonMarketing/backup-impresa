@@ -5,6 +5,22 @@ import os from 'node:os';
 import path from 'node:path';
 import {createApplication,passwordHash,passwordMatches} from '../server.mjs';
 import {Notifier} from '../lib/notify.mjs';
+import {spawn} from 'node:child_process';
+import net from 'node:net';
+import {fileURLToPath} from 'node:url';
+import {setTimeout as delay} from 'node:timers/promises';
+
+test('native entrypoint starts through a release symlink',async t=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'backup-symlink-'));
+  t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+  const entry=path.join(root,'server.mjs');fs.symlinkSync(fileURLToPath(new URL('../server.mjs',import.meta.url)),entry);
+  const probe=net.createServer();await new Promise(r=>probe.listen(0,'127.0.0.1',r));const port=probe.address().port;await new Promise(r=>probe.close(r));
+  const child=spawn(process.execPath,[entry],{env:{...process.env,HOST:'127.0.0.1',PORT:String(port),DATA_DIR:path.join(root,'data'),RESTORE_ROOT:path.join(root,'restores'),BACKUP_SOURCES:'[]'},stdio:'ignore'});
+  t.after(async()=>{if(child.exitCode===null){const exited=new Promise(r=>child.once('exit',r));child.kill('SIGTERM');await exited;}});
+  let healthy=false;
+  for(let i=0;i<40;i++){try{if((await fetch(`http://127.0.0.1:${port}/api/health`)).ok){healthy=true;break;}}catch{}await delay(100);}
+  assert(healthy,'Symlink entrypoint exited without starting the HTTP server');
+});
 
 test('password con salt e confronto corretto',()=>{
   const hash=passwordHash('password-di-prova-123');assert(passwordMatches('password-di-prova-123',hash));

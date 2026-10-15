@@ -166,7 +166,7 @@ export function createApplication(options={}) {
   function startScheduler(){timer=setInterval(()=>tick().catch(e=>store.alert(e.message)),60000);timer.unref();tick().catch(e=>store.alert(e.message));}
   return {server,store,engine,tick,startScheduler,close:()=>{clearInterval(timer);server.close();}};
 }
-if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
+if(process.argv[1]&&fs.realpathSync(process.argv[1])===fileURLToPath(import.meta.url)){
   const app=createApplication();app.server.listen(Number(process.env.PORT||9899),process.env.HOST||'0.0.0.0',()=>{
     console.log('Backup Impresa 0.1.1 in ascolto');app.startScheduler();
   });
