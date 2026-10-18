@@ -1,4 +1,14 @@
-# Backup Impresa 0.2 — empieza aquí
+# Backup Impresa 0.3 — empieza aquí
+
+## Nueva interfaz 0.3
+
+Usa el menú lateral: **Resumen** supervisa los planes; **Planes de copia** configura y ejecuta copias legibles, remotas y protegidas; **Orígenes** muestra carpetas locales y conexiones SSH; **Destinos** muestra verificaciones reales del almacenamiento; **Copias protegidas** gestiona archivos cifrados y puntos de restauración (motor Restic). **Actividad**, **Restauración**, **Avisos y n8n**, **Guías paso a paso** y **Configuración** tienen páginas propias.
+
+Pulsa **Nueva copia**, elige legible, remota o protegida y sigue origen → destino → horario → resumen. Para SSH: conexión → verificar identidad → acceso dedicado → resumen. Guardar no demuestra que sea recuperable: copia, verifica y recupera un archivo antes de activar horarios. Los planes nuevos tienen horarios desactivados. Los planes y horarios existentes se conservan al actualizar.
+
+Resumen separa última copia correcta, última verificación correcta y último resultado. Un éxito anterior puede coexistir con fallos recientes. Las rutas del mismo sistema de archivos comparten espacio. El muestreo de integridad no verifica todos los datos. Las preferencias visuales solo afectan al navegador. Backrest y Proxmox siguen independientes.
+
+Consulta [API y agentes externos](AGENTS-API.es.md). Esta versión no incluye modelos AI, chat ni MCP.
 
 [English](GUIDE.en.md) · [Italiano](GUIDE.it.md)
 
@@ -27,7 +37,7 @@ sudo mkdir -p /srv/backup-impresa/source /srv/backup-impresa/target /srv/backup-
 printf 'Mi primera copia de prueba\n' | sudo tee /srv/backup-impresa/source/hola.txt >/dev/null
 sudo touch /srv/backup-impresa/source/.backup-impresa-source
 printf 'backup-usb-v1\n' | sudo tee /srv/backup-impresa/target/.backup-impresa-target >/dev/null
-git clone --branch v0.2.3 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
+git clone --branch v0.3.0 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
 cd backup-impresa
 cp .env.example .env
 chmod 600 .env
@@ -47,7 +57,7 @@ Para un disco real comprueba primero `findmnt -T /tu/carpeta`: debe corresponder
 1. Prepara las mismas carpetas y marcadores **en el servidor Docker**, no en el ordenador del navegador.
 2. En Portainer selecciona el entorno y abre **Stacks → Add stack → Repository**.
 3. Nombre: `backup-impresa`. Repositorio: `https://github.com/MarlonMarketing/backup-impresa`.
-4. Referencia: `refs/tags/v0.2.3`. Archivo Compose: `compose.yaml`.
+4. Referencia: `refs/tags/v0.3.0`. Archivo Compose: `compose.yaml`.
 5. Copia los valores de `.env.example` a las variables del stack e introduce las rutas reales. `TARGET_ID` debe coincidir con el contenido del marcador del destino.
 6. Despliega. Abre la consola del contenedor y ejecuta `cat /data/setup-token` para completar el primer acceso.
 

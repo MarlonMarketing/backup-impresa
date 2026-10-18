@@ -20,7 +20,7 @@ test('translation keys and interpolation placeholders match in all languages',()
  for(const [,key]of html.matchAll(/data-i18n="(\w+)"/g))assert(keys.includes(key),key);
  const control=fs.readFileSync(new URL('../public/control.js',import.meta.url),'utf8');
  for(const [,key]of control.matchAll(/\bt\("(\w+)"\s*[,)]/g))assert(keys.includes(key),key);
- for(const file of ['index.html','app.js','i18n.js','control.js','control-i18n.js']){
+ for(const file of ['index.html','app.js','i18n.js','control.js','control-i18n.js','shell.js','shell-i18n.js','wizard.js']){
   const contents=fs.readFileSync(new URL('../public/'+file,import.meta.url),'utf8');assert(!/Ã.|Â[· ]|â€/.test(contents),'Broken UTF-8 in '+file);
  }
 });
@@ -36,4 +36,10 @@ test('API honors browser language and serves the translation module',async t=>{
  const es=await fetch(origin+'/api/status',{headers:{'Accept-Language':'es-ES'}});assert.equal(es.status,401);assert.equal((await es.json()).error,'Debes iniciar sesión');
  const en=await fetch(origin+'/api/status',{headers:{'Accept-Language':'en'}});assert.equal((await en.json()).error,'Sign in required');
  const module=await fetch(origin+'/i18n.js');assert.equal(module.status,200);assert.match(module.headers.get('content-type'),/javascript/);assert.match(await module.text(),/Copias legibles/);
+ for(const file of ['shell.js','shell-i18n.js','wizard.js','shell.css']){
+   const asset=await fetch(origin+'/'+file);assert.equal(asset.status,200,file);assert.match(asset.headers.get('content-type'),file.endsWith('.css')?/text\/css/:/javascript/);assert((await asset.text()).length>100);
+ }
+ // Loading the new interface must not create, enable or run a backup.
+ assert.deepEqual(app.store.state.jobs,[]);assert.deepEqual(app.store.state.runs,[]);
+ const storage=app.control.publicState().storage;assert(storage.every(s=>s.online&&Number.isFinite(s.total)&&s.total>=s.free));
 });

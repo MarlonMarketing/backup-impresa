@@ -1,4 +1,14 @@
-# Backup Impresa 0.2 — comincia da qui
+# Backup Impresa 0.3 — comincia da qui
+
+## Nuova interfaccia 0.3
+
+Usa il menu laterale: **Panoramica** controlla tutti i piani; **Piani di backup** configura e avvia copie leggibili, remote e protette; **Sorgenti** elenca cartelle locali e collegamenti SSH; **Destinazioni** mostra i controlli reali dei dischi; **Backup protetti** gestisce archivi cifrati e punti di ripristino (motore Restic). **Attività**, **Ripristino**, **Avvisi e n8n**, **Guide passo passo** e **Impostazioni** hanno pagine dedicate.
+
+Premi **Nuovo backup**, scegli leggibile, remoto o protetto, poi segui sorgente → destinazione → orari → riepilogo. Una sorgente SSH segue collegamento → verifica identità → accesso dedicato → riepilogo. Salvare non dimostra la recuperabilità: copia, verifica e recupera un file prima di attivare gli orari. Le nuove pianificazioni partono disattivate. Piani e orari esistenti restano invariati con l’aggiornamento.
+
+La Panoramica distingue ultima copia riuscita, ultima verifica riuscita e ultimo esito. Un successo vecchio può essere seguito da errori recenti. Percorsi sullo stesso filesystem condividono lo spazio. Il controllo a campione degli archivi protetti non verifica tutti i dati. Le preferenze grafiche valgono solo per il browser. Backrest e Proxmox restano indipendenti.
+
+Per gli agenti esterni leggi [API e possibilità degli agenti](AGENTS-API.it.md). Questa versione non include modelli AI, chat o MCP.
 
 [English](GUIDE.en.md) · [Español](GUIDE.es.md)
 
@@ -27,7 +37,7 @@ sudo mkdir -p /srv/backup-impresa/source /srv/backup-impresa/target /srv/backup-
 printf 'Il mio primo backup di prova\n' | sudo tee /srv/backup-impresa/source/ciao.txt >/dev/null
 sudo touch /srv/backup-impresa/source/.backup-impresa-source
 printf 'backup-usb-v1\n' | sudo tee /srv/backup-impresa/target/.backup-impresa-target >/dev/null
-git clone --branch v0.2.3 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
+git clone --branch v0.3.0 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
 cd backup-impresa
 cp .env.example .env
 chmod 600 .env
@@ -47,7 +57,7 @@ Per dischi reali controlla prima `findmnt -T /tua/cartella`: deve essere montato
 1. Prepara le stesse cartelle e i marcatori **sul server Docker**, non sul PC dal quale apri il browser.
 2. In Portainer scegli l’ambiente, poi **Stacks → Add stack → Repository**.
 3. Nome stack: `backup-impresa`. Repository: `https://github.com/MarlonMarketing/backup-impresa`.
-4. Riferimento: `refs/tags/v0.2.3`. File Compose: `compose.yaml`.
+4. Riferimento: `refs/tags/v0.3.0`. File Compose: `compose.yaml`.
 5. Riporta i valori di `.env.example` nelle variabili dello stack e inserisci i percorsi reali. `TARGET_ID` deve coincidere con il contenuto del marcatore di destinazione.
 6. Distribuisci lo stack. Apri la console del container e usa `cat /data/setup-token` per completare il primo accesso.
 

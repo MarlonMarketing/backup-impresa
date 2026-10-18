@@ -1,4 +1,9 @@
-<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Backup Impresa · Guide</title><link rel="stylesheet" href="/style.css"></head><body><main><a href="/">← Backup Impresa</a><article class="card guide"><h1>Backup Impresa 0.2 — comincia da qui</h1>
+<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Backup Impresa · Guide</title><link rel="stylesheet" href="/style.css"></head><body><main><a href="/">← Backup Impresa</a><article class="card guide"><h1>Backup Impresa 0.3 — comincia da qui</h1>
+<h2>Nuova interfaccia 0.3</h2>
+<p>Usa il menu laterale: <strong>Panoramica</strong> controlla tutti i piani; <strong>Piani di backup</strong> configura e avvia copie leggibili, remote e protette; <strong>Sorgenti</strong> elenca cartelle locali e collegamenti SSH; <strong>Destinazioni</strong> mostra i controlli reali dei dischi; <strong>Backup protetti</strong> gestisce archivi cifrati e punti di ripristino (motore Restic). <strong>Attività</strong>, <strong>Ripristino</strong>, <strong>Avvisi e n8n</strong>, <strong>Guide passo passo</strong> e <strong>Impostazioni</strong> hanno pagine dedicate.</p>
+<p>Premi <strong>Nuovo backup</strong>, scegli leggibile, remoto o protetto, poi segui sorgente → destinazione → orari → riepilogo. Una sorgente SSH segue collegamento → verifica identità → accesso dedicato → riepilogo. Salvare non dimostra la recuperabilità: copia, verifica e recupera un file prima di attivare gli orari. Le nuove pianificazioni partono disattivate. Piani e orari esistenti restano invariati con l’aggiornamento.</p>
+<p>La Panoramica distingue ultima copia riuscita, ultima verifica riuscita e ultimo esito. Un successo vecchio può essere seguito da errori recenti. Percorsi sullo stesso filesystem condividono lo spazio. Il controllo a campione degli archivi protetti non verifica tutti i dati. Le preferenze grafiche valgono solo per il browser. Backrest e Proxmox restano indipendenti.</p>
+<p>Per gli agenti esterni leggi <a href="https://github.com/MarlonMarketing/backup-impresa/blob/v0.3.0/docs/AGENTS-API.it.md">API e possibilità degli agenti</a>. Questa versione non include modelli AI, chat o MCP.</p>
 <p><a href="/guide/en">English</a> · <a href="/guide/es">Español</a></p>
 <p>Parti da una prova. Collega i dati importanti soltanto dopo aver copiato, verificato e recuperato un file dimostrativo.</p>
 <h2>1. Scegli il tipo di copia</h2>
@@ -16,7 +21,7 @@
 printf &#x27;Il mio primo backup di prova\n&#x27; | sudo tee /srv/backup-impresa/source/ciao.txt &gt;/dev/null
 sudo touch /srv/backup-impresa/source/.backup-impresa-source
 printf &#x27;backup-usb-v1\n&#x27; | sudo tee /srv/backup-impresa/target/.backup-impresa-target &gt;/dev/null
-git clone --branch v0.2.3 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
+git clone --branch v0.3.0 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
 cd backup-impresa
 cp .env.example .env
 chmod 600 .env
@@ -31,11 +36,11 @@ docker compose exec backup-impresa cat /data/setup-token</code></pre>
 <li>Prepara le stesse cartelle e i marcatori <strong>sul server Docker</strong>, non sul PC dal quale apri il browser.</li>
 <li>In Portainer scegli l’ambiente, poi <strong>Stacks → Add stack → Repository</strong>.</li>
 <li>Nome stack: <code>backup-impresa</code>. Repository: <code>https://github.com/MarlonMarketing/backup-impresa</code>.</li>
-<li>Riferimento: <code>refs/tags/v0.2.3</code>. File Compose: <code>compose.yaml</code>.</li>
+<li>Riferimento: <code>refs/tags/v0.3.0</code>. File Compose: <code>compose.yaml</code>.</li>
 <li>Riporta i valori di <code>.env.example</code> nelle variabili dello stack e inserisci i percorsi reali. <code>TARGET_ID</code> deve coincidere con il contenuto del marcatore di destinazione.</li>
 <li>Distribuisci lo stack. Apri la console del container e usa <code>cat /data/setup-token</code> per completare il primo accesso.</li>
 </ol>
-<p>Non avviare due istanze sugli stessi dati o repository. Non montare il socket Docker nell’applicazione. Per Docker senza Compose e VPS Linux senza Docker consulta <a href="https://github.com/MarlonMarketing/backup-impresa/blob/v0.2.0/docs/INSTALL.it.md">INSTALL.it.md</a>.</p>
+<p>Non avviare due istanze sugli stessi dati o repository. Non montare il socket Docker nell’applicazione. Per Docker senza Compose e VPS Linux senza Docker consulta <a href="https://github.com/MarlonMarketing/backup-impresa/blob/v0.3.0/docs/INSTALL.it.md">INSTALL.it.md</a>.</p>
 <h2>4. Fai una copia e un recupero di prova</h2>
 <ol>
 <li>In <strong>I tuoi lavori</strong> premi <strong>Nuovo lavoro</strong>. ID <code>prima-prova</code>, nome <code>La mia prima prova</code>, sorgente <code>Files</code>.</li>
@@ -64,7 +69,7 @@ docker compose exec backup-impresa cat /data/setup-token</code></pre>
 <p>Le copie settimanali Docker indipendenti dello script nativo Oracle vengono riconosciute anche quando il manifest copiato indica ancora il giornaliero corrispondente. Un manifest cambiato per un gruppo già verificato a casa blocca il lavoro e conserva gli archivi locali: controlla la sorgente, senza cancellare il marcatore di verifica locale.</p>
 <h2>6. Scegli i dischi fisici</h2>
 <p>Inizialmente download e repository locali sono nel volume dati dell’applicazione. È una scelta utile per provare senza modificare un’installazione esistente, ma può riempire il disco di sistema e non rappresenta un disco indipendente.</p>
-<p>Per l’uso reale impiega <a href="https://github.com/MarlonMarketing/backup-impresa/blob/v0.2.0/compose.storage.yaml">compose.storage.yaml</a> con cartelle dedicate. Dopo aver verificato i montaggi, crea nella cartella dei download il file <code>.backup-impresa-staging</code> con contenuto <code>backup-staging-v1</code>, e nella cartella dei repository <code>.backup-impresa-repositories</code> con contenuto <code>backup-repositories-v1</code>. Imposta <code>STAGING_PATH</code> e <code>REPOSITORIES_PATH</code> in <code>.env</code>, poi:</p>
+<p>Per l’uso reale impiega <a href="https://github.com/MarlonMarketing/backup-impresa/blob/v0.3.0/compose.storage.yaml">compose.storage.yaml</a> con cartelle dedicate. Dopo aver verificato i montaggi, crea nella cartella dei download il file <code>.backup-impresa-staging</code> con contenuto <code>backup-staging-v1</code>, e nella cartella dei repository <code>.backup-impresa-repositories</code> con contenuto <code>backup-repositories-v1</code>. Imposta <code>STAGING_PATH</code> e <code>REPOSITORIES_PATH</code> in <code>.env</code>, poi:</p>
 <pre><code>docker compose -f compose.yaml -f compose.storage.yaml config --quiet
 docker compose -f compose.yaml -f compose.storage.yaml up -d</code></pre>
 <p>Su Portainer riporta nello stack i montaggi e le variabili di questo file aggiuntivo. Le cartelle host devono già esistere. Il programma rifiuta una destinazione esterna senza il marcatore corretto. Non monta dischi, non modifica la mappatura UID di NTFS e non cambia i mount point LXC di Proxmox.</p>

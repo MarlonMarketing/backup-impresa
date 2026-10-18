@@ -1,4 +1,14 @@
-# Backup Impresa 0.2 — start here
+# Backup Impresa 0.3 — start here
+
+## New interface in 0.3
+
+Use the sidebar: **Overview** monitors all plans; **Backup plans** configures and runs readable/remote/protected copies; **Sources** lists local folders and SSH connections; **Destinations** shows real storage checks; **Protected backups** manages encrypted archives and recovery points (Restic engine); **Activity**, **Recovery**, **Alerts and n8n**, **Step-by-step guides**, and **Settings** have their own pages.
+
+Click **New backup**, choose readable, remote or protected, then follow source → destination → schedule → review. Adding an SSH source follows connection → verify identity → dedicated access → review. Saving never proves recoverability: copy, verify and recover a sample before enabling schedules. New schedules remain off by default. Existing plans and schedules are preserved on upgrade.
+
+Overview keeps the last successful copy, last successful verification and latest result separate. Old successes can coexist with newer failures. Disk capacity is shared for paths on the same filesystem. Integrity sampling for protected archives is not a full-data check. Display preferences are local to your browser. Backrest and Proxmox remain independent.
+
+For external agents, see [API and agent capabilities](AGENTS-API.md). AI models, chat and MCP are not included in this release.
 
 [Italiano](GUIDE.it.md) · [Español](GUIDE.es.md)
 
@@ -27,7 +37,7 @@ sudo mkdir -p /srv/backup-impresa/source /srv/backup-impresa/target /srv/backup-
 printf 'My first backup test\n' | sudo tee /srv/backup-impresa/source/hello.txt >/dev/null
 sudo touch /srv/backup-impresa/source/.backup-impresa-source
 printf 'backup-usb-v1\n' | sudo tee /srv/backup-impresa/target/.backup-impresa-target >/dev/null
-git clone --branch v0.2.3 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
+git clone --branch v0.3.0 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
 cd backup-impresa
 cp .env.example .env
 chmod 600 .env
@@ -47,7 +57,7 @@ For a real external disk, first check `findmnt -T /your/folder`. Create markers 
 1. Prepare the same folders and markers on the **Docker host**, not your desktop computer.
 2. In Portainer select the environment, then **Stacks → Add stack → Repository**.
 3. Name: `backup-impresa`. Repository: `https://github.com/MarlonMarketing/backup-impresa`.
-4. Reference: `refs/tags/v0.2.3`. Compose file: `compose.yaml`.
+4. Reference: `refs/tags/v0.3.0`. Compose file: `compose.yaml`.
 5. Copy the values from `.env.example` into stack environment variables. Set your real host paths. Keep `TARGET_ID` equal to the target marker's content.
 6. Deploy. Open the container console and run `cat /data/setup-token` to complete the first login.
 

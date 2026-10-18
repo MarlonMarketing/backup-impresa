@@ -1,4 +1,9 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Backup Impresa · Guide</title><link rel="stylesheet" href="/style.css"></head><body><main><a href="/">← Backup Impresa</a><article class="card guide"><h1>Backup Impresa 0.2 — start here</h1>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Backup Impresa · Guide</title><link rel="stylesheet" href="/style.css"></head><body><main><a href="/">← Backup Impresa</a><article class="card guide"><h1>Backup Impresa 0.3 — start here</h1>
+<h2>New interface in 0.3</h2>
+<p>Use the sidebar: <strong>Overview</strong> monitors all plans; <strong>Backup plans</strong> configures and runs readable/remote/protected copies; <strong>Sources</strong> lists local folders and SSH connections; <strong>Destinations</strong> shows real storage checks; <strong>Protected backups</strong> manages encrypted archives and recovery points (Restic engine); <strong>Activity</strong>, <strong>Recovery</strong>, <strong>Alerts and n8n</strong>, <strong>Step-by-step guides</strong>, and <strong>Settings</strong> have their own pages.</p>
+<p>Click <strong>New backup</strong>, choose readable, remote or protected, then follow source → destination → schedule → review. Adding an SSH source follows connection → verify identity → dedicated access → review. Saving never proves recoverability: copy, verify and recover a sample before enabling schedules. New schedules remain off by default. Existing plans and schedules are preserved on upgrade.</p>
+<p>Overview keeps the last successful copy, last successful verification and latest result separate. Old successes can coexist with newer failures. Disk capacity is shared for paths on the same filesystem. Integrity sampling for protected archives is not a full-data check. Display preferences are local to your browser. Backrest and Proxmox remain independent.</p>
+<p>For external agents, see <a href="https://github.com/MarlonMarketing/backup-impresa/blob/v0.3.0/docs/AGENTS-API.md">API and agent capabilities</a>. AI models, chat and MCP are not included in this release.</p>
 <p><a href="/guide/it">Italiano</a> · <a href="/guide/es">Español</a></p>
 <p>This guide starts with a test. Do not connect your only copy of important files until you have completed the recovery exercise.</p>
 <h2>1. Understand the three kinds of copy</h2>
@@ -16,7 +21,7 @@
 printf &#x27;My first backup test\n&#x27; | sudo tee /srv/backup-impresa/source/hello.txt &gt;/dev/null
 sudo touch /srv/backup-impresa/source/.backup-impresa-source
 printf &#x27;backup-usb-v1\n&#x27; | sudo tee /srv/backup-impresa/target/.backup-impresa-target &gt;/dev/null
-git clone --branch v0.2.3 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
+git clone --branch v0.3.0 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
 cd backup-impresa
 cp .env.example .env
 chmod 600 .env
@@ -31,11 +36,11 @@ docker compose exec backup-impresa cat /data/setup-token</code></pre>
 <li>Prepare the same folders and markers on the <strong>Docker host</strong>, not your desktop computer.</li>
 <li>In Portainer select the environment, then <strong>Stacks → Add stack → Repository</strong>.</li>
 <li>Name: <code>backup-impresa</code>. Repository: <code>https://github.com/MarlonMarketing/backup-impresa</code>.</li>
-<li>Reference: <code>refs/tags/v0.2.3</code>. Compose file: <code>compose.yaml</code>.</li>
+<li>Reference: <code>refs/tags/v0.3.0</code>. Compose file: <code>compose.yaml</code>.</li>
 <li>Copy the values from <code>.env.example</code> into stack environment variables. Set your real host paths. Keep <code>TARGET_ID</code> equal to the target marker&#x27;s content.</li>
 <li>Deploy. Open the container console and run <code>cat /data/setup-token</code> to complete the first login.</li>
 </ol>
-<p>Do not deploy a second instance over the same state or repository. Never mount the Docker socket in this application. Docker without Compose and native Linux/systemd installation are documented in <a href="https://github.com/MarlonMarketing/backup-impresa/blob/v0.2.0/docs/INSTALL.md">INSTALL.md</a>.</p>
+<p>Do not deploy a second instance over the same state or repository. Never mount the Docker socket in this application. Docker without Compose and native Linux/systemd installation are documented in <a href="https://github.com/MarlonMarketing/backup-impresa/blob/v0.3.0/docs/INSTALL.md">INSTALL.md</a>.</p>
 <h2>4. Complete your first recovery test</h2>
 <ol>
 <li>Under <strong>Your jobs</strong>, click <strong>New job</strong>. ID: <code>first-test</code>; name: <code>My first test</code>; source: <code>Files</code>.</li>
@@ -64,7 +69,7 @@ docker compose exec backup-impresa cat /data/setup-token</code></pre>
 <p>Independent weekly Docker copies produced by the native Oracle script are recognized even when their copied manifest still names the matching daily folder. A changed manifest for an already verified local set blocks the operation and preserves the local archives; diagnose the source rather than deleting the local verification marker.</p>
 <h2>6. Choose the physical disks</h2>
 <p>By default downloads and local Restic repositories are inside the application state volume. This supports a trial without changing an existing deployment, but can fill the system disk and is not a separate-disk backup.</p>
-<p>For production use <a href="https://github.com/MarlonMarketing/backup-impresa/blob/v0.2.0/compose.storage.yaml">compose.storage.yaml</a> with dedicated host folders. After checking their actual mounts, create <code>.backup-impresa-staging</code> containing <code>backup-staging-v1</code> in the download folder and <code>.backup-impresa-repositories</code> containing <code>backup-repositories-v1</code> in the repository folder. Set <code>STAGING_PATH</code> and <code>REPOSITORIES_PATH</code> in <code>.env</code>, then run:</p>
+<p>For production use <a href="https://github.com/MarlonMarketing/backup-impresa/blob/v0.3.0/compose.storage.yaml">compose.storage.yaml</a> with dedicated host folders. After checking their actual mounts, create <code>.backup-impresa-staging</code> containing <code>backup-staging-v1</code> in the download folder and <code>.backup-impresa-repositories</code> containing <code>backup-repositories-v1</code> in the repository folder. Set <code>STAGING_PATH</code> and <code>REPOSITORIES_PATH</code> in <code>.env</code>, then run:</p>
 <pre><code>docker compose -f compose.yaml -f compose.storage.yaml config --quiet
 docker compose -f compose.yaml -f compose.storage.yaml up -d</code></pre>
 <p>For Portainer, the stack editor must include the corresponding bind mounts and environment values from that override. Host folders must already exist. The application refuses an external root without the matching identity marker. It does not mount disks, change NTFS UID mappings or alter Proxmox LXC mount points.</p>

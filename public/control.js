@@ -1,3 +1,4 @@
+import {guideForm} from '/wizard.js';
 import { translate, localeFor } from "/i18n.js";
 export function mountControl({ api, refresh, message, language }) {
   const root = document.querySelector("#control-panel");
@@ -177,6 +178,7 @@ export function mountControl({ api, refresh, message, language }) {
           ],
           old.sourceId,
         ) +
+        `<p data-download-target class="warning">${t("stagingLocation")}: <code>${esc(state.staging)}</code></p>` +
         field("time", "dailyAt", old.time || "06:30", "time") +
         check("enabled", "enableCopy", old.enabled) +
         check("verifyEnabled", "enableVerify", old.verifyEnabled) +
@@ -256,6 +258,7 @@ export function mountControl({ api, refresh, message, language }) {
     }
     dialog.innerHTML = `<form data-kind="${kind}">${html}<button class="primary" type="submit">${t("saveConfiguration")}</button><p data-form-error class="error" role="alert"></p></form>`;
     if (old.id) dialog.querySelector("[name=id]").readOnly = true;
+    if (kind === 'Servers') for (const name of ['host','port','user','root','hostKey','hostKeyVerified']) dialog.querySelector(`[name=${name}]`).required = true;
     function conditional() {
       const f = dialog.querySelector("form");
       if (kind === "Tasks") {
@@ -270,6 +273,7 @@ export function mountControl({ api, refresh, message, language }) {
         for (const name of ["serverId", "profile"])
           f.elements[name].closest("label").hidden =
             f.elements.type.value !== "pull";
+        f.querySelector("[data-download-target]").hidden = f.elements.type.value !== "pull";
         for (const name of ["repositoryId", "sourceId"])
           f.elements[name].closest("label").hidden =
             f.elements.type.value !== "restic";
@@ -286,6 +290,21 @@ export function mountControl({ api, refresh, message, language }) {
       .querySelector("[name=profile]")
       ?.addEventListener("change", conditional);
     conditional();
+    if (kind !== 'Settings') {
+      const groups = kind === 'Servers' ? [
+        {title:'connectionStep',fields:['id','name','host','port','user','root']},
+        {title:'trustStep',fields:['hostKey','hostKeyVerified','[data-scan]','[data-fingerprint]']},
+        {title:'accessStep',fields:['privateKey','[data-generate]','[data-public-key]']},
+      ] : kind === 'Repositories' ? [
+        {title:'archiveStep',fields:['id','name','type','serverId','path','password']},
+        {title:'retentionStep',fields:['keepDaily','keepWeekly','keepMonthly','managed','.warning']},
+      ] : [
+        {title:'sourceStep',fields:['id','name','type','serverId','profile','sourceId','maxBackupAgeHours','requireSites','requireDocker']},
+        {title:'destinationStep',fields:['repositoryId','[data-download-target]']},
+        {title:'scheduleStep',fields:['time','enabled','verifyEnabled','verifyDay','verifyTime','.warning']},
+      ];
+      guideForm(dialog.querySelector('form'),groups,t,{reviewHelp:kind==='Servers'?'saveSourceHelp':'reviewHelp'});
+    }
     dialog.showModal();
   }
   dialog.addEventListener("submit", async (e) => {
@@ -353,6 +372,11 @@ export function mountControl({ api, refresh, message, language }) {
   });
   const button = (action, id, label, extra = "") =>
     `<button class="ghost" data-control-action="${action}" data-control-id="${esc(id)}" ${extra}>${esc(t(label))}</button>`;
+  document.addEventListener('backup-create',e=>{
+    if(e.detail==='pull'&&!state.servers.length){message(t('missingSource'),true);return;}
+    if(e.detail==='restic'&&!state.repositories.length){message(t('missingArchive'),true);return;}
+    edit('Tasks',{type:e.detail});
+  });
   root.addEventListener("click", async (e) => {
     const b = e.target.closest("[data-control-action]");
     if (!b) return;
@@ -460,16 +484,16 @@ export function mountControl({ api, refresh, message, language }) {
         if (!info.open) info.showModal();
       } else if (run?.status === "failed") pendingSnapshots = null;
     }
-    root.innerHTML = `<div class="section-head"><div><h2>${t("controlTitle")}</h2><p>${t("controlHelp")}</p></div>${button("settings", "", "controlSettings")}</div>
-    ${state.storage.some((s) => s.internal) ? `<p class="warning">${t("internalStorageWarning")}</p>` : ""}${state.storage
+    root.innerHTML = `<div class="section-head" data-pages="notifications"><div><h2>${t("controlTitle")}</h2><p>${t("controlHelp")}</p></div>${button("settings", "", "controlSettings")}</div>
+    <div data-pages="destinations">${state.storage.some((s) => s.internal) ? `<p class="warning">${t("internalStorageWarning")}</p>` : ""}${state.storage
       .filter((s) => !s.online)
       .map((s) => `<p class="warning">${esc(s.kind)}: ${esc(s.error)}</p>`)
       .join("")}
-    <div class="control-grid"><section class="card"><div class="section-head"><h3>${t("controlServers")}</h3>${button("addServers", "", "addServer")}</div><p>${t("serverSummary")}</p>${state.servers.map((s) => `<article class="control-item"><strong>${esc(s.name)}</strong><p class="muted">${esc(s.user)}@${esc(s.host)}:${s.port}</p>${button("test", s.id, "testConnection")}${button("editServers", s.id, "configure")}</article>`).join("") || `<p class="empty">${t("noServers")}</p>`}</section>
-    <section class="card"><div class="section-head"><h3>${t("controlRepositories")}</h3>${button("addRepositories", "", "addRepository")}</div><p>${t("repositorySummary")}</p>${state.repositories.map((r) => `<article class="control-item"><strong>${esc(r.name)}</strong><p class="muted">${esc(r.type)} · ${t(r.managed ? "managedLabel" : "readOnlyLabel")}</p>${button("editRepositories", r.id, "configure")}${r.managed ? button("init", r.id, "initializeRepository") : ""}${button("snapshots", r.id, "listSnapshots")}${button("check", r.id, "checkRepository")}${button("restore", r.id, "restore")}${button("retention-preview", r.id, "retentionPreview")}${r.managed && r.retentionPlan?.ids.length ? button("retention-apply", r.id, "applyRetention") : ""}</article>`).join("") || `<p class="empty">${t("noRepositories")}</p>`}</section></div>
-    <section class="card"><div class="section-head"><h3>${t("controlTasks")}</h3>${button("addTasks", "", "addTask")}</div><p>${t("taskSummary")}</p>${state.tasks.map((task) => `<article class="control-item"><strong>${esc(task.name)}</strong><p class="muted">${esc(task.id)} · ${t(task.type === "pull" ? "pullTask" : "resticTask")} · ${task.enabled ? esc(task.time) : t("disabled")}</p>${button("run-task", task.id, "runNow")}${task.type === "pull" ? button("verify-pull", task.id, "verify") : ""}${button("editTasks", task.id, "configure")}</article>`).join("") || `<p class="empty">${t("noControlTasks")}</p>`}<p class="muted">${t("stagingLocation")}: <code>${esc(state.staging)}</code></p></section>
-    <section class="card"><div class="section-head"><h3>${t("automationTitle")}</h3><div>${button("settings", "", "controlSettings")}${button("token", "", "rotateToken")}${button("deliveries", "", "deliveryHistory")}</div></div><p>${t("automationHelp")}</p><p class="muted">GET /api/integrations/status · POST /api/integrations/run</p></section>
-    <section class="card"><h3>${t("controlHistory")}</h3>${
+    </div><div class="control-grid"><section class="card" data-pages="sources"><div class="section-head"><h3>${t("controlServers")}</h3>${button("addServers", "", "addServer")}</div><p>${t("serverSummary")}</p>${state.servers.map((s) => `<article class="control-item"><strong>${esc(s.name)}</strong><p class="muted">${esc(s.user)}@${esc(s.host)}:${s.port}</p>${button("test", s.id, "testConnection")}${button("editServers", s.id, "configure")}</article>`).join("") || `<p class="empty">${t("noServers")}</p>`}</section>
+    <section class="card" data-pages="protected"><div class="section-head"><h3>${t("controlRepositories")}</h3>${button("addRepositories", "", "addRepository")}</div><p>${t("repositorySummary")}</p>${state.repositories.map((r) => `<article class="control-item"><strong>${esc(r.name)}</strong><p class="muted">${esc(r.type)} · ${t(r.managed ? "managedLabel" : "readOnlyLabel")}</p>${button("editRepositories", r.id, "configure")}${r.managed ? button("init", r.id, "initializeRepository") : ""}${button("snapshots", r.id, "listSnapshots")}${button("check", r.id, "checkRepository")}${button("restore", r.id, "restore")}${button("retention-preview", r.id, "retentionPreview")}${r.managed && r.retentionPlan?.ids.length ? button("retention-apply", r.id, "applyRetention") : ""}</article>`).join("") || `<p class="empty">${t("noRepositories")}</p>`}</section></div>
+    <section class="card" data-pages="backups"><div class="section-head"><h3>${t("controlTasks")}</h3>${button("addTasks", "", "addTask")}</div><p>${t("taskSummary")}</p>${state.tasks.map((task) => `<article class="control-item"><strong>${esc(task.name)}</strong><p class="muted">${esc(task.id)} · ${t(task.type === "pull" ? "pullTask" : "resticTask")} · ${task.enabled ? esc(task.time) : t("disabled")}</p>${button("run-task", task.id, "runNow")}${task.type === "pull" ? button("verify-pull", task.id, "verify") : ""}${button("editTasks", task.id, "configure")}</article>`).join("") || `<p class="empty">${t("noControlTasks")}</p>`}<p class="muted">${t("stagingLocation")}: <code>${esc(state.staging)}</code></p></section>
+    <section class="card" data-pages="notifications"><div class="section-head"><h3>${t("automationTitle")}</h3><div>${button("settings", "", "controlSettings")}${button("token", "", "rotateToken")}${button("deliveries", "", "deliveryHistory")}</div></div><p>${t("automationHelp")}</p><p class="muted">GET /api/integrations/status · POST /api/integrations/run</p></section>
+    <section class="card" data-pages="activity"><h3>${t("controlHistory")}</h3>${
       state.runs
         .slice(0, 15)
         .map(
@@ -486,8 +510,9 @@ export function mountControl({ api, refresh, message, language }) {
             r.taskId === task.id && r.status === "success" && r.result?.backups,
         );
         if (!r) return "";
-        return `<section class="card"><h3>${esc(task.name)} · ${t("protectedServices")}</h3>${r.result.backups.map((b) => `<details><summary>${esc(b.path)}</summary><p>${t("sitesLabel")}: ${esc((b.domains || []).join(", ") || "—")}</p><p>Docker: ${esc((b.containers || []).join(", ") || "—")}</p><p>${t("checksumConfirmed")}</p></details>`).join("")}</section>`;
+        return `<section class="card" data-pages="sources"><h3>${esc(task.name)} · ${t("protectedServices")}</h3>${r.result.backups.map((b) => `<details><summary>${esc(b.path)}</summary><p>${t("sitesLabel")}: ${esc((b.domains || []).join(", ") || "—")}</p><p>Docker: ${esc((b.containers || []).join(", ") || "—")}</p><p>${t("checksumConfirmed")}</p></details>`).join("")}</section>`;
       })
       .join("")}`;
+    document.dispatchEvent(new Event("backup-control-rendered"));
   };
 }

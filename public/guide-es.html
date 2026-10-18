@@ -1,4 +1,9 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Backup Impresa · Guide</title><link rel="stylesheet" href="/style.css"></head><body><main><a href="/">← Backup Impresa</a><article class="card guide"><h1>Backup Impresa 0.2 — empieza aquí</h1>
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Backup Impresa · Guide</title><link rel="stylesheet" href="/style.css"></head><body><main><a href="/">← Backup Impresa</a><article class="card guide"><h1>Backup Impresa 0.3 — empieza aquí</h1>
+<h2>Nueva interfaz 0.3</h2>
+<p>Usa el menú lateral: <strong>Resumen</strong> supervisa los planes; <strong>Planes de copia</strong> configura y ejecuta copias legibles, remotas y protegidas; <strong>Orígenes</strong> muestra carpetas locales y conexiones SSH; <strong>Destinos</strong> muestra verificaciones reales del almacenamiento; <strong>Copias protegidas</strong> gestiona archivos cifrados y puntos de restauración (motor Restic). <strong>Actividad</strong>, <strong>Restauración</strong>, <strong>Avisos y n8n</strong>, <strong>Guías paso a paso</strong> y <strong>Configuración</strong> tienen páginas propias.</p>
+<p>Pulsa <strong>Nueva copia</strong>, elige legible, remota o protegida y sigue origen → destino → horario → resumen. Para SSH: conexión → verificar identidad → acceso dedicado → resumen. Guardar no demuestra que sea recuperable: copia, verifica y recupera un archivo antes de activar horarios. Los planes nuevos tienen horarios desactivados. Los planes y horarios existentes se conservan al actualizar.</p>
+<p>Resumen separa última copia correcta, última verificación correcta y último resultado. Un éxito anterior puede coexistir con fallos recientes. Las rutas del mismo sistema de archivos comparten espacio. El muestreo de integridad no verifica todos los datos. Las preferencias visuales solo afectan al navegador. Backrest y Proxmox siguen independientes.</p>
+<p>Consulta <a href="https://github.com/MarlonMarketing/backup-impresa/blob/v0.3.0/docs/AGENTS-API.es.md">API y agentes externos</a>. Esta versión no incluye modelos AI, chat ni MCP.</p>
 <p><a href="/guide/en">English</a> · <a href="/guide/it">Italiano</a></p>
 <p>Empieza con una prueba. Conecta los datos importantes después de copiar, verificar y recuperar un archivo de demostración.</p>
 <h2>1. Elige el tipo de copia</h2>
@@ -16,7 +21,7 @@
 printf &#x27;Mi primera copia de prueba\n&#x27; | sudo tee /srv/backup-impresa/source/hola.txt &gt;/dev/null
 sudo touch /srv/backup-impresa/source/.backup-impresa-source
 printf &#x27;backup-usb-v1\n&#x27; | sudo tee /srv/backup-impresa/target/.backup-impresa-target &gt;/dev/null
-git clone --branch v0.2.3 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
+git clone --branch v0.3.0 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
 cd backup-impresa
 cp .env.example .env
 chmod 600 .env
@@ -31,11 +36,11 @@ docker compose exec backup-impresa cat /data/setup-token</code></pre>
 <li>Prepara las mismas carpetas y marcadores <strong>en el servidor Docker</strong>, no en el ordenador del navegador.</li>
 <li>En Portainer selecciona el entorno y abre <strong>Stacks → Add stack → Repository</strong>.</li>
 <li>Nombre: <code>backup-impresa</code>. Repositorio: <code>https://github.com/MarlonMarketing/backup-impresa</code>.</li>
-<li>Referencia: <code>refs/tags/v0.2.3</code>. Archivo Compose: <code>compose.yaml</code>.</li>
+<li>Referencia: <code>refs/tags/v0.3.0</code>. Archivo Compose: <code>compose.yaml</code>.</li>
 <li>Copia los valores de <code>.env.example</code> a las variables del stack e introduce las rutas reales. <code>TARGET_ID</code> debe coincidir con el contenido del marcador del destino.</li>
 <li>Despliega. Abre la consola del contenedor y ejecuta <code>cat /data/setup-token</code> para completar el primer acceso.</li>
 </ol>
-<p>No ejecutes dos instancias sobre el mismo estado o repositorio. Nunca montes el socket Docker en esta aplicación. Para Docker sin Compose y una VPS Linux sin Docker consulta <a href="https://github.com/MarlonMarketing/backup-impresa/blob/v0.2.0/docs/INSTALL.es.md">INSTALL.es.md</a>.</p>
+<p>No ejecutes dos instancias sobre el mismo estado o repositorio. Nunca montes el socket Docker en esta aplicación. Para Docker sin Compose y una VPS Linux sin Docker consulta <a href="https://github.com/MarlonMarketing/backup-impresa/blob/v0.3.0/docs/INSTALL.es.md">INSTALL.es.md</a>.</p>
 <h2>4. Realiza una copia y una recuperación de prueba</h2>
 <ol>
 <li>En <strong>Tus tareas</strong> pulsa <strong>Nueva tarea</strong>. ID <code>primera-prueba</code>, nombre <code>Mi primera prueba</code>, origen <code>Files</code>.</li>
@@ -64,7 +69,7 @@ docker compose exec backup-impresa cat /data/setup-token</code></pre>
 <p>Se reconocen las copias semanales Docker independientes del script nativo Oracle aunque su manifiesto todavía indique la carpeta diaria correspondiente. Si cambia un manifiesto de un conjunto local ya verificado, se bloquea la operación y se conservan los archivos locales: revisa el origen sin borrar el marcador de verificación local.</p>
 <h2>6. Elige los discos físicos</h2>
 <p>Inicialmente las descargas y repositorios locales están en el volumen de datos de la aplicación. Permite probar sin modificar una instalación existente, pero puede llenar el disco del sistema y no constituye una copia en otro disco.</p>
-<p>Para producción utiliza <a href="https://github.com/MarlonMarketing/backup-impresa/blob/v0.2.0/compose.storage.yaml">compose.storage.yaml</a> con carpetas dedicadas. Después de verificar sus montajes, crea <code>.backup-impresa-staging</code> con contenido <code>backup-staging-v1</code> en la carpeta de descargas, y <code>.backup-impresa-repositories</code> con contenido <code>backup-repositories-v1</code> en la de repositorios. Configura <code>STAGING_PATH</code> y <code>REPOSITORIES_PATH</code> en <code>.env</code>, y ejecuta:</p>
+<p>Para producción utiliza <a href="https://github.com/MarlonMarketing/backup-impresa/blob/v0.3.0/compose.storage.yaml">compose.storage.yaml</a> con carpetas dedicadas. Después de verificar sus montajes, crea <code>.backup-impresa-staging</code> con contenido <code>backup-staging-v1</code> en la carpeta de descargas, y <code>.backup-impresa-repositories</code> con contenido <code>backup-repositories-v1</code> en la de repositorios. Configura <code>STAGING_PATH</code> y <code>REPOSITORIES_PATH</code> en <code>.env</code>, y ejecuta:</p>
 <pre><code>docker compose -f compose.yaml -f compose.storage.yaml config --quiet
 docker compose -f compose.yaml -f compose.storage.yaml up -d</code></pre>
 <p>En Portainer añade al stack los montajes y variables de ese archivo adicional. Las carpetas del host deben existir previamente. La aplicación rechaza una raíz externa sin el marcador correcto. No monta discos, cambia asignaciones UID de NTFS ni modifica puntos de montaje LXC de Proxmox.</p>

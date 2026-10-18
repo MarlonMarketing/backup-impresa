@@ -17,7 +17,7 @@ def inline(text):
         if lang:
             url = "/guide/" + lang[1]
         elif not url.startswith("https://"):
-            prefix = "https://github.com/MarlonMarketing/backup-impresa/blob/v0.2.0/"
+            prefix = "https://github.com/MarlonMarketing/backup-impresa/blob/v0.3.0/"
             url = prefix + (url[3:] if url.startswith("../") else "docs/" + url)
         return '<a href="' + url + '">' + title + "</a>"
 
