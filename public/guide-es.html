@@ -16,7 +16,7 @@
 printf &#x27;Mi primera copia de prueba\n&#x27; | sudo tee /srv/backup-impresa/source/hola.txt &gt;/dev/null
 sudo touch /srv/backup-impresa/source/.backup-impresa-source
 printf &#x27;backup-usb-v1\n&#x27; | sudo tee /srv/backup-impresa/target/.backup-impresa-target &gt;/dev/null
-git clone --branch v0.2.2 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
+git clone --branch v0.2.3 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
 cd backup-impresa
 cp .env.example .env
 chmod 600 .env
@@ -31,7 +31,7 @@ docker compose exec backup-impresa cat /data/setup-token</code></pre>
 <li>Prepara las mismas carpetas y marcadores <strong>en el servidor Docker</strong>, no en el ordenador del navegador.</li>
 <li>En Portainer selecciona el entorno y abre <strong>Stacks → Add stack → Repository</strong>.</li>
 <li>Nombre: <code>backup-impresa</code>. Repositorio: <code>https://github.com/MarlonMarketing/backup-impresa</code>.</li>
-<li>Referencia: <code>refs/tags/v0.2.2</code>. Archivo Compose: <code>compose.yaml</code>.</li>
+<li>Referencia: <code>refs/tags/v0.2.3</code>. Archivo Compose: <code>compose.yaml</code>.</li>
 <li>Copia los valores de <code>.env.example</code> a las variables del stack e introduce las rutas reales. <code>TARGET_ID</code> debe coincidir con el contenido del marcador del destino.</li>
 <li>Despliega. Abre la consola del contenedor y ejecuta <code>cat /data/setup-token</code> para completar el primer acceso.</li>
 </ol>

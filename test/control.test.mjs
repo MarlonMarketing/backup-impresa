@@ -708,7 +708,21 @@ test("real SSH: pinned identity, Oracle manifest transfer, corruption detection 
       path.join(control.staging, "oracle", weeklyDocker, "site.tar.gz"),
     ),
   );
+  // Verification must not make an already-copied USB tree appear different.
+  const markers = [
+    path.join(control.staging, "oracle", ".backup-impresa-complete"),
+    ...[runFolder, dailyDocker, weeklyDocker].map((dir) =>
+      path.join(control.staging, "oracle", dir, ".backup-impresa-verified.json")),
+  ];
+  const beforeVerify = markers.map((file) => {
+    fs.utimesSync(file, new Date(1000), new Date(1000));
+    return { bytes: fs.readFileSync(file), mtime: fs.statSync(file).mtimeMs };
+  });
   await success(control, { taskId: "oracle", mode: "verify-pull" });
+  markers.forEach((file, i) => {
+    assert.deepEqual(fs.readFileSync(file), beforeVerify[i].bytes);
+    assert.equal(fs.statSync(file).mtimeMs, beforeVerify[i].mtime);
+  });
   fs.writeFileSync(
     path.join(control.staging, "oracle", runFolder, "site.tar.gz"),
     "damaged",
@@ -882,4 +896,18 @@ test("weekly Docker aliases are exact and verified manifests have a stable ident
     oracleManifestIdentity(mapped),
     oracleManifestIdentity({ ...mapped, completed: "2026-10-19T00:00:00Z" }),
   );
+});
+
+test("generic SSH verification preserves the producer completion marker", async (t) => {
+  const { control } = fixture(t);
+  control.saveServer(serverBody);
+  const task = control.saveTask({ id: "files", name: "Files", serverId: "oracle", profile: "files" });
+  control.pullCommand = async () => ({ stdout: "", stderr: "" });
+  await control.pull(task);
+  const marker = path.join(control.staging, "files", ".backup-impresa-complete");
+  fs.utimesSync(marker, new Date(1000), new Date(1000));
+  const before = fs.readFileSync(marker);
+  await control.pull(task, true);
+  assert.deepEqual(fs.readFileSync(marker), before);
+  assert.equal(fs.statSync(marker).mtimeMs, 1000);
 });

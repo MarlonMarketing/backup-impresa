@@ -16,7 +16,7 @@
 printf &#x27;My first backup test\n&#x27; | sudo tee /srv/backup-impresa/source/hello.txt &gt;/dev/null
 sudo touch /srv/backup-impresa/source/.backup-impresa-source
 printf &#x27;backup-usb-v1\n&#x27; | sudo tee /srv/backup-impresa/target/.backup-impresa-target &gt;/dev/null
-git clone --branch v0.2.2 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
+git clone --branch v0.2.3 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
 cd backup-impresa
 cp .env.example .env
 chmod 600 .env
@@ -31,7 +31,7 @@ docker compose exec backup-impresa cat /data/setup-token</code></pre>
 <li>Prepare the same folders and markers on the <strong>Docker host</strong>, not your desktop computer.</li>
 <li>In Portainer select the environment, then <strong>Stacks → Add stack → Repository</strong>.</li>
 <li>Name: <code>backup-impresa</code>. Repository: <code>https://github.com/MarlonMarketing/backup-impresa</code>.</li>
-<li>Reference: <code>refs/tags/v0.2.2</code>. Compose file: <code>compose.yaml</code>.</li>
+<li>Reference: <code>refs/tags/v0.2.3</code>. Compose file: <code>compose.yaml</code>.</li>
 <li>Copy the values from <code>.env.example</code> into stack environment variables. Set your real host paths. Keep <code>TARGET_ID</code> equal to the target marker&#x27;s content.</li>
 <li>Deploy. Open the container console and run <code>cat /data/setup-token</code> to complete the first login.</li>
 </ol>

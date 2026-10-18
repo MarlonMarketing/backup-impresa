@@ -27,7 +27,7 @@ El segundo debe coincidir con `TARGET_ID`. No lo crees en una carpeta alternativ
 Requiere Docker Engine, Compose v2 y git:
 
 ```sh
-git clone --branch v0.2.2 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
+git clone --branch v0.2.3 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
 cd backup-impresa
 cp .env.example .env
 chmod 600 .env
@@ -73,7 +73,7 @@ Clona el repositorio como en la sección 2, revisa `deploy/install-native.sh` y 
 sudo bash deploy/install-native.sh
 ```
 
-Crea el usuario `backup-impresa`, instala la versión en `/opt/backup-impresa/releases/0.2.2` y prepara systemd. **No inicia el servicio**, no crea marcadores y no sobrescribe instalaciones existentes. Un fallo de npm puede dejar un directorio parcial que debes revisar antes de reintentar.
+Crea el usuario `backup-impresa`, instala la versión en `/opt/backup-impresa/releases/0.2.3` y prepara systemd. **No inicia el servicio**, no crea marcadores y no sobrescribe instalaciones existentes. Un fallo de npm puede dejar un directorio parcial que debes revisar antes de reintentar.
 
 Prepara las carpetas con lectura del origen y escritura del destino/recuperaciones para el usuario del servicio. Solo para una prueba con carpetas nuevas y vacías:
 
