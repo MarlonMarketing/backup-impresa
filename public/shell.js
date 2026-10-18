@@ -22,7 +22,7 @@ export function mountShell({language,onNewJob}){
   function navigate(view){if(!views.includes(view))return;current=view;sidebar.classList.remove('open');mobile.setAttribute('aria-expanded','false');history.replaceState(null,'','#'+view);applyView();$('#page-title').focus({preventScroll:true});}
   $('#page-title').setAttribute('tabindex','-1');
   function applyView(){
-    document.querySelectorAll('[data-pages]').forEach(el=>el.hidden=!el.dataset.pages.split(' ').includes(current));
+    document.querySelectorAll('[data-pages]').forEach(el=>el.hidden=!el.dataset.pages.split(' ').includes(current)||(el.id==='alerts-section'&&!state?.alerts?.length));
     sidebar.querySelectorAll('[data-view-link]').forEach(b=>{const active=b.dataset.viewLink===current;b.classList.toggle('active',active);if(active)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
     $('#page-title').textContent=t(keys[current]||current);
     const description={overview:'overviewHelp',backups:'backupsHelp',sources:'sourcesHelp',destinations:'destinationsHelp',protected:'protectedHelp',activity:'recentHelp',recovery:'recoveryIntro',notifications:'guideAlerts',guides:'guideFirst',settings:'settingsHelp'};
@@ -49,5 +49,5 @@ export function mountShell({language,onNewJob}){
   function choose(){let d=$('#backup-choice');if(!d){d=document.createElement('dialog');d.id='backup-choice';document.body.append(d);}d.innerHTML=`<div class="section-head"><h2>${t('chooseTitle')}</h2><button class="ghost" data-close="backup-choice">${t('close')}</button></div><div class="choice-grid">${[['readable','readableTitle','readableHelp'],['pull','remoteTitle','remoteHelp'],['restic','protectedChoice','protectedChoiceHelp']].map(([v,title,help])=>`<button class="choice-card" data-backup-choice="${v}"><strong>${t(title)}</strong><span>${t(help)}</span><b>${t('continue')} →</b></button>`).join('')}</div>`;d.showModal();}
   function preferences(){const theme=localStorage.getItem('backup-theme')||'auto';document.documentElement.dataset.theme=theme;document.body.classList.toggle('hide-help',localStorage.getItem('backup-help')==='off');}
   preferences();
-  return {render,navigate,auth:()=>{const auth=!$('#dashboard').hidden;sidebar.hidden=!auth;mobile.hidden=!auth;document.body.classList.toggle('signed-in',auth);},choose};
+  return {render,navigate,updateView:applyView,auth:()=>{const auth=!$('#dashboard').hidden;sidebar.hidden=!auth;mobile.hidden=!auth;document.body.classList.toggle('signed-in',auth);},choose};
 }
