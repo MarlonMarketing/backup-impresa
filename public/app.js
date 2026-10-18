@@ -1,3 +1,4 @@
+import {mountControl} from '/control.js';
 import {normalizeLanguage,translate,localeFor} from '/i18n.js';
 let language=normalizeLanguage(localStorage.getItem('backup-language')||navigator.language);
 const t=(key,values)=>translate(language,key,values);
@@ -13,10 +14,12 @@ async function api(url,body){const response=await fetch(url,{method:body?'POST':
 async function init(){const auth=await api('/api/auth');csrf=auth.csrf||'';setup=auth.setup;$('#auth').hidden=auth.authenticated;$('#dashboard').hidden=!auth.authenticated;$('#header-actions').hidden=!auth.authenticated;$('#token-label').hidden=!setup;$('#auth-title').textContent=setup?t('setupTitle'):t('loginTitle');$('#auth-help').textContent=setup?t('setupHelp'):t('loginHelp');$('#auth-form').password.autocomplete=setup?'new-password':'current-password';if(auth.authenticated)await refresh();}
 function badge(status){return`<span class="badge ${esc(status)}">${esc(label(status))}</span>`;}
 async function refresh(){if($('#dashboard').hidden)return;state=await api('/api/status');render();if(logRunId&&$('#log-dialog').open)await loadLog(logRunId);}
+const renderControl=mountControl({api,refresh,message,language:()=>language});
 function render(){
+  renderControl(state.control,state.sources);
   $('#clock').textContent=state.timezone;
-  const copies=state.runs.filter(r=>r.mode==='copy'),last=copies.find(r=>r.status==='success'),failures=state.runs.filter(r=>['failed','interrupted'].includes(r.status)).length;
-  $('#stats').innerHTML=[[state.targetName,state.target.online?t('connected'):t('attention'),state.target.online?t('space',{free:bytes(state.target.free),total:bytes(state.target.total)}):t('writesBlocked')],[t('lastCopy'),last?date(last.finishedAt):t('notRun'),last?.name||t('noCopy')],[t('configuredJobs'),String(state.jobs.length),t('activeSchedules',{n:state.jobs.filter(j=>j.enabled).length})],[t('issues'),String(failures),state.active?t('runningJob'):t('nothingRunning')]].map(([label,value,note])=>`<div class="stat"><span class="label">${esc(label)}</span><div class="value">${esc(value)}</div><small>${esc(note)}</small></div>`).join('');
+  const allRuns=[...state.runs,...(state.control?.runs||[])].sort((a,b)=>String(b.finishedAt||b.queuedAt).localeCompare(String(a.finishedAt||a.queuedAt))),copies=allRuns.filter(r=>['copy','pull','backup'].includes(r.mode)),last=copies.find(r=>r.status==='success'),failures=allRuns.filter(r=>['failed','interrupted'].includes(r.status)).length;
+  $('#stats').innerHTML=[[state.targetName,state.target.online?t('connected'):t('attention'),state.target.online?t('space',{free:bytes(state.target.free),total:bytes(state.target.total)}):t('writesBlocked')],[t('lastCopy'),last?date(last.finishedAt):t('notRun'),last?.name||t('noCopy')],[t('configuredJobs'),String(state.jobs.length+(state.control?.tasks.length||0)),t('activeSchedules',{n:state.jobs.filter(j=>j.enabled).length+(state.control?.tasks.filter(j=>j.enabled).length||0)})],[t('issues'),String(failures),(state.active||state.control?.active)?t('runningJob'):t('nothingRunning')]].map(([label,value,note])=>`<div class="stat"><span class="label">${esc(label)}</span><div class="value">${esc(value)}</div><small>${esc(note)}</small></div>`).join('');
   $('#target-warning').hidden=state.target.online&&!state.pilot;$('#target-warning').textContent=!state.target.online?t('diskError',{error:state.target.error||''}):t('pilot');
   $('#jobs').innerHTML=state.jobs.length?state.jobs.map(job=>{
     const recent=state.runs.find(r=>r.jobId===job.id),busy=state.runs.some(r=>r.jobId===job.id&&['queued','running'].includes(r.status));

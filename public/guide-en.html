@@ -1,0 +1,111 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Backup Impresa · Guide</title><link rel="stylesheet" href="/style.css"></head><body><main><a href="/">← Backup Impresa</a><article class="card guide"><h1>Backup Impresa 0.2 — start here</h1>
+<p><a href="/guide/it">Italiano</a> · <a href="/guide/es">Español</a></p>
+<p>This guide starts with a test. Do not connect your only copy of important files until you have completed the recovery exercise.</p>
+<h2>1. Understand the three kinds of copy</h2>
+<div class="table-wrap"><table><thead><tr><th>What you choose</th><th>What you get</th><th>How to recover</th></tr></thead><tbody>
+<tr><td>Readable file copy</td><td>Ordinary files in <code>current/JOB</code>; replaced files in <code>versions/JOB/RUN</code></td><td>Open the disk or use Explore and recover</td></tr>
+<tr><td>SSH download</td><td>Ordinary files downloaded from another server</td><td>Open the download folder; copy its archives to the service that restores them</td></tr>
+<tr><td>Restic repository</td><td>Encrypted, deduplicated snapshots</td><td>Use this panel or Restic with the repository password</td></tr>
+</tbody></table></div>
+<p>A <strong>snapshot</strong> is a saved view of files at a particular time. A <strong>checksum</strong> is a content fingerprint used to detect differences. A <strong>dump</strong> is a database export prepared by its application. Copying a running database&#x27;s storage directory does not make a consistent database backup.</p>
+<p>Two folders on one disk are useful for testing, but do not protect against that disk failing. A backup result and successful notification delivery are separate outcomes. A 10% Restic data check is a sample, not a complete read of all repository data.</p>
+<h2>2. Install with Docker Compose</h2>
+<p>Prerequisites: a Linux Docker host, Docker Compose v2, Git and permission to manage Docker. Docker Desktop can be used for a test. A NAS/unprivileged LXC may require an administrator to prepare mount permissions.</p>
+<p>For a <strong>new test installation only</strong>, create three empty folders:</p>
+<pre><code>sudo mkdir -p /srv/backup-impresa/source /srv/backup-impresa/target /srv/backup-impresa/restores
+printf &#x27;My first backup test\n&#x27; | sudo tee /srv/backup-impresa/source/hello.txt &gt;/dev/null
+sudo touch /srv/backup-impresa/source/.backup-impresa-source
+printf &#x27;backup-usb-v1\n&#x27; | sudo tee /srv/backup-impresa/target/.backup-impresa-target &gt;/dev/null
+git clone --branch v0.2.0 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
+cd backup-impresa
+cp .env.example .env
+chmod 600 .env
+docker compose config --quiet
+docker compose up -d
+docker compose exec backup-impresa cat /data/setup-token</code></pre>
+<p>The last command shows your one-time setup token. Enter it <strong>in the panel</strong>, not in a public issue or chat. Choose an administrator name and a password of at least 12 characters.</p>
+<p>The default address is <code>http://127.0.0.1:9899</code> <strong>on the Docker host</strong>. If the host is elsewhere, use an SSH tunnel (<code>ssh -N -L 9899:127.0.0.1:9899 USER@HOST</code>) or configure the host&#x27;s LAN address in <code>.env</code> as <code>BIND_ADDRESS</code>. Use a trusted HTTPS reverse proxy and <code>COOKIE_SECURE=true</code> for remote access. Do not publish plain HTTP to the Internet.</p>
+<p>For a real external disk, first check <code>findmnt -T /your/folder</code>. Create markers only after confirming the expected disk is mounted. Do not format a disk or recursively change ownership of existing files to follow this guide.</p>
+<h2>3. Install with Portainer instead</h2>
+<ol>
+<li>Prepare the same folders and markers on the <strong>Docker host</strong>, not your desktop computer.</li>
+<li>In Portainer select the environment, then <strong>Stacks → Add stack → Repository</strong>.</li>
+<li>Name: <code>backup-impresa</code>. Repository: <code>https://github.com/MarlonMarketing/backup-impresa</code>.</li>
+<li>Reference: <code>refs/tags/v0.2.0</code>. Compose file: <code>compose.yaml</code>.</li>
+<li>Copy the values from <code>.env.example</code> into stack environment variables. Set your real host paths. Keep <code>TARGET_ID</code> equal to the target marker&#x27;s content.</li>
+<li>Deploy. Open the container console and run <code>cat /data/setup-token</code> to complete the first login.</li>
+</ol>
+<p>Do not deploy a second instance over the same state or repository. Never mount the Docker socket in this application. Docker without Compose and native Linux/systemd installation are documented in <a href="https://github.com/MarlonMarketing/backup-impresa/blob/v0.2.0/docs/INSTALL.md">INSTALL.md</a>.</p>
+<h2>4. Complete your first recovery test</h2>
+<ol>
+<li>Under <strong>Your jobs</strong>, click <strong>New job</strong>. ID: <code>first-test</code>; name: <code>My first test</code>; source: <code>Files</code>.</li>
+<li>Leave automatic copy and verification <strong>off</strong>, then save.</li>
+<li>Click <strong>Simulate</strong>, open Details and check the result. No files should be copied yet.</li>
+<li>Click <strong>Copy now</strong>. Wait for Success.</li>
+<li>Click <strong>Verify</strong>. This reads and compares content.</li>
+<li>Open <strong>Files and versions</strong>, find <code>hello.txt</code>, then click <strong>Recover copy</strong>.</li>
+<li>The recovered file is under the separate restores folder. Compare it with the source. The source must remain unchanged.</li>
+</ol>
+<p>To test versions, change the test file, run another copy and choose its previous version in the browser. <code>versions/</code> contains only replaced files, not full historical snapshots. Source deletions do not delete the readable current copy. No readable-copy retention or automatic cleanup is enabled in 0.2; monitor capacity.</p>
+<h2>5. Add a server from the panel</h2>
+<ol>
+<li>Under <strong>Servers</strong>, click <strong>Add server</strong>. Choose ID <code>remote-demo</code> and a descriptive name.</li>
+<li>Enter host, SSH port, dedicated user and an absolute folder, for example <code>/srv/exported-backups</code>. Spaces and shell characters are not supported in remote paths.</li>
+<li>Click <strong>Read server fingerprint</strong>. Independently compare it in the server console with <code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code>. Only then tick the confirmation. A scan alone does not authenticate a server.</li>
+<li>Click <strong>Generate a dedicated access key</strong>. The panel displays its <strong>public</strong> key. Ask the server administrator to authorize that key for read-only backup access. This one-time step must happen on the remote server; the panel cannot grant itself access.</li>
+<li>Alternatively paste an existing dedicated private key. Encrypted/passphrase-protected SSH keys are not supported by unattended jobs; do not use your personal administrator key.</li>
+<li>Save, then <strong>Test connection</strong>. A successful test checks authentication and folder access; it does not prove every file is readable.</li>
+<li>In <strong>Remote and Restic tasks</strong>, add a task, choose <strong>Download from a server</strong>, select the server and choose the profile. Start manually.</li>
+</ol>
+<p><strong>Ordinary files</strong> downloads a folder, keeping replaced file versions. Run Verify afterward. It does not prepare databases. <strong>Oracle native backups</strong> requires the completed JSON manifests produced by our Oracle backup scripts; it downloads completed sets and verifies every listed file against SHA256. It is not a generic Virtualmin discovery API. Sites and Docker containers listed in those manifests appear in the panel after a successful download.</p>
+<p>Download files stay on disk independently of remote retention. No automatic download deletion is enabled. The Oracle catalog is refreshed separately; refreshing it never deletes downloaded backup sets.</p>
+<p>You can also enable weekly verification in each task, with its own day and time. It is off for new tasks. Automatic copies using a scheduled remote source wait for a successful download on that local calendar day.</p>
+<h2>6. Choose the physical disks</h2>
+<p>By default downloads and local Restic repositories are inside the application state volume. This supports a trial without changing an existing deployment, but can fill the system disk and is not a separate-disk backup.</p>
+<p>For production use <a href="https://github.com/MarlonMarketing/backup-impresa/blob/v0.2.0/compose.storage.yaml">compose.storage.yaml</a> with dedicated host folders. After checking their actual mounts, create <code>.backup-impresa-staging</code> containing <code>backup-staging-v1</code> in the download folder and <code>.backup-impresa-repositories</code> containing <code>backup-repositories-v1</code> in the repository folder. Set <code>STAGING_PATH</code> and <code>REPOSITORIES_PATH</code> in <code>.env</code>, then run:</p>
+<pre><code>docker compose -f compose.yaml -f compose.storage.yaml config --quiet
+docker compose -f compose.yaml -f compose.storage.yaml up -d</code></pre>
+<p>For Portainer, the stack editor must include the corresponding bind mounts and environment values from that override. Host folders must already exist. The application refuses an external root without the matching identity marker. It does not mount disks, change NTFS UID mappings or alter Proxmox LXC mount points.</p>
+<p>After a remote task exists it becomes a source in the readable-copy job selector. Use it for a second copy onto your NTFS USB disk. Keep archive passwords and configuration secrets private even when the archives are ordinary readable files.</p>
+<h2>7. Create a Restic backup</h2>
+<ol>
+<li>Add a repository, for example ID <code>photos-test</code>. Select a local mounted disk or SFTP server/folder.</li>
+<li>Enter a strong repository password and save it independently in a password manager. Losing the password prevents recovery.</li>
+<li>Check <strong>Backup Impresa is the only manager</strong> only for a repository this application will own. Existing Backrest repositories should start unchecked: listing, checks and recovery only.</li>
+<li>Save. For a <strong>new empty</strong> repository, click Initialize and type its ID. Existing repositories are never initialized automatically.</li>
+<li>Create a Restic task, select repository and source, and run it manually. Remote downloads may be selected as a source after a successful download.</li>
+<li>List snapshots. Choose Recover copy beside a snapshot to recover it into a new folder. Existing source files are not overwritten.</li>
+<li>Run Check integrity. The button checks structure and a 10% data sample. For a full read, an administrator can run <code>restic check --read-data</code> with the same repository and securely supplied password.</li>
+</ol>
+<p>Restic retention preview uses seven daily and four weekly snapshots carrying the <code>backup-impresa</code> tag. The preview itself deletes nothing. Applying it requires a managed repository and typing its ID within five minutes; only the exact snapshot IDs shown are removed, followed by prune. This is irreversible. It is never scheduled automatically. Do not allow Backrest and this panel to manage retention simultaneously. Restic&#x27;s repository locks remain enabled; the app does not force-unlock repositories.</p>
+<p>Retention counts can be edited in the repository form: daily 1–365, weekly 0–104 and monthly 0–36; zero disables that weekly/monthly category. Defaults are seven daily, four weekly and no monthly snapshots. Editing a repository invalidates an earlier deletion preview. Restic deduplication can save less space for newly regenerated compressed archives than for original unchanged files.</p>
+<h2>8. Configure notifications in the browser</h2>
+<p>Open <strong>Notifications and n8n settings</strong>. Fill SMTP host, port, username, password, sender and recipient, then Save. Port 587 requires STARTTLS; 465 uses TLS immediately. Certificate validation stays enabled. For Gmail use an app password where your account permits it, not your normal login password. Existing environment-variable credentials remain supported; blank password fields keep the current secret.</p>
+<p>For Telegram, create your own bot, start a conversation with it and enter token/chat ID. Save, then use <strong>Send test</strong>. Confirm receipt on the real channel. By default successes are quiet; failures and tests send messages. You can select all results. Notification failure is shown separately from backup failure.</p>
+<p>Enabled tasks with no successful backup/download for 30 hours generate an application warning. This cannot detect the panel/server being powered off: use an independent external heartbeat monitor.</p>
+<h2>9. Connect n8n</h2>
+<p><strong>Outgoing:</strong> create a Webhook workflow in n8n, method POST, with Header Auth configured as <code>Authorization: Bearer YOUR_OUTGOING_TOKEN</code>. Activate/publish the workflow and copy its <strong>production HTTPS URL</strong>. Put URL and matching token in Backup Impresa. Events contain ID, job, operation, status, time and error; not passwords. Use <code>eventId</code> to deduplicate. Failed delivery retries up to four total attempts. Redirects are refused; destination changes do not forward pending events to the new URL. Delivery history shows the result.</p>
+<p><strong>Incoming:</strong> in Backup Impresa allow specific task IDs (comma-separated). Local readable jobs use <code>legacy:JOB_ID</code>. Create an incoming token with <strong>Create / rotate incoming token</strong> and save it in n8n&#x27;s credential store. Rotation invalidates the previous token.</p>
+<p>In an n8n HTTP Request node:</p>
+<pre><code>GET https://YOUR-PANEL/api/integrations/status
+Authorization: Bearer YOUR_INCOMING_TOKEN
+
+POST https://YOUR-PANEL/api/integrations/run
+Authorization: Bearer YOUR_INCOMING_TOKEN
+Content-Type: application/json
+Idempotency-Key: unique-workflow-execution-id
+
+{&quot;taskId&quot;:&quot;remote-demo&quot;,&quot;mode&quot;:&quot;pull&quot;}</code></pre>
+<p>Use a different idempotency key for each intended execution; reuse it only when retrying that request. A 202 response means queued, not completed. Poll status and inspect the returned run ID before starting dependent work. Allowed actions: remote <code>pull</code>, Restic <code>backup</code>/<code>check</code>, local <code>copy</code>/<code>verify</code>/<code>preview</code>. Incoming calls cannot change settings, initialize repositories, restore or delete snapshots, or execute arbitrary shell commands.</p>
+<h2>10. Practical examples</h2>
+<ul>
+<li><strong>Family photos:</strong> prepare a consistent Immich SQL dump; copy the entire media directory plus that dump to NTFS for readable recovery. Optionally create a Restic snapshot on another disk. Copying only the SQL dump does not protect photos; media alone does not restore users/albums.</li>
+<li><strong>VPS websites and Docker:</strong> Virtualmin/application scripts create coherent archives. Home pulls completed manifests, verifies checksums, then copies the downloaded source to USB. Keep independent home retention. A restored website still needs its application-specific restore procedure.</li>
+<li><strong>Unreliable Internet:</strong> home initiates SSH, so a dynamic home IP needs no incoming router port. A failed download does not become Success. Retry manually or at the next schedule; existing completed sets remain.</li>
+<li><strong>n8n escalation:</strong> failure event → email immediately from Backup Impresa → n8n filters/reports/retries a permitted task. A retry uses the same event/request ID to avoid duplicate operations. Backups and direct email/Telegram do not depend on n8n being online.</li>
+</ul>
+<h2>11. Upgrade, recover the panel and troubleshoot</h2>
+<p>Before upgrading: wait until no job is running; save the entire <code>/data</code> volume and your private deployment configuration. Keep the same volume, mounts, project name and passwords. Review release notes; pull the chosen version and recreate the container. Never use <code>docker compose down -v</code>. Do not delete existing Backrest repositories during migration.</p>
+<p>Secrets are encrypted in <code>secrets.json</code> using <code>secrets/master.key</code> (or <code>MASTER_KEY_FILE</code>). Save the key separately and protect both. The default same-volume key does not protect against theft of the whole volume. A missing key causes startup to fail instead of silently generating a replacement. Do not publish state, secrets, keys, <code>.env</code> files or real logs in GitHub issues.</p>
+<p>If SSH fails: confirm address/port, host fingerprint, authorized dedicated key, folder permissions and required remote <code>rsync</code>. If Restic fails: check password, compatible Restic version, repository ownership, disk space and locks; never force-unlock blindly. If external storage is absent: reconnect the correct disk rather than creating a new marker on a fallback folder. If recovery fails: keep original backups, inspect the specific error and test on an isolated destination.</p>
+<p>The panel coordinates tools; it cannot promise perfect backups of every application. Test recovery periodically, and maintain an independent/offline copy.</p></article></main></body></html>

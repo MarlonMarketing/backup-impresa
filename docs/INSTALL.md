@@ -1,5 +1,6 @@
 # Install on your own server
 
+For graphical SSH, Restic and n8n setup, follow [the complete 0.2 guide](GUIDE.en.md).
 [Italiano](INSTALL.it.md) · [Español](INSTALL.es.md)
 
 Choose **Docker Compose**, **Docker CLI without Portainer**, or **native Linux/systemd without Docker**. The dashboard always runs on your machine; no hosted subscription is required. A VPS provides compute, not a second backup disk: choose a separate destination and check capacity before copying. This release copies files visible on the server; it does not automatically connect to arbitrary cloud services or remote servers.
@@ -30,7 +31,7 @@ The destination marker must match `TARGET_ID`. Never create it on a fallback dir
 Requires Docker Engine and the Compose v2 plugin. Clone the versioned release:
 
 ```sh
-git clone --branch v0.1.4 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
+git clone --branch v0.2.0 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
 cd backup-impresa
 cp .env.example .env
 chmod 600 .env
@@ -67,7 +68,7 @@ docker run -d --name backup-impresa \
   --mount type=bind,source=/srv/backup-impresa/source,target=/sources/files,readonly \
   --mount type=bind,source=/srv/backup-impresa/target,target=/destinations/usb \
   --mount type=bind,source=/srv/backup-impresa/restores,target=/restores \
-  ghcr.io/marlonmarketing/backup-impresa:0.1.4
+  ghcr.io/marlonmarketing/backup-impresa:0.2.0
 docker logs --tail 50 backup-impresa
 docker exec backup-impresa cat /data/setup-token
 ```
@@ -91,7 +92,7 @@ Install prerequisites using your OS/vendor's supported packages; the installer d
 sudo bash deploy/install-native.sh
 ```
 
-The installer creates service account `backup-impresa`, installs application files in `/opt/backup-impresa/releases/0.1.4`, creates the `current` link, installs dependencies as that account with npm scripts disabled, and installs the unit. **It does not start the service, create storage markers or overwrite an existing installation.** A failed dependency installation can leave a partial release directory; inspect it before retrying. Environment file is `/etc/backup-impresa/backup-impresa.env` (root-only); persistent application state is `/var/lib/backup-impresa`.
+The installer creates service account `backup-impresa`, installs application files in `/opt/backup-impresa/releases/0.2.0`, creates the `current` link, installs dependencies as that account with npm scripts disabled, and installs the unit. **It does not start the service, create storage markers or overwrite an existing installation.** A failed dependency installation can leave a partial release directory; inspect it before retrying. Environment file is `/etc/backup-impresa/backup-impresa.env` (root-only); persistent application state is `/var/lib/backup-impresa`.
 
 Prepare the three storage directories from section 1. For a new, empty test layout only, after the account exists:
 

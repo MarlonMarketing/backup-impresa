@@ -3,3 +3,7 @@
 *.service text eol=lf
 *.yaml text eol=lf
 *.png binary
+*.mjs text eol=lf
+*.js text eol=lf
+*.md text eol=lf
+*.html text eol=lf

@@ -1,0 +1,112 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Backup Impresa · Guide</title><link rel="stylesheet" href="/style.css"></head><body><main><a href="/">← Backup Impresa</a><article class="card guide"><h1>Backup Impresa 0.2 — empieza aquí</h1>
+<p><a href="/guide/en">English</a> · <a href="/guide/it">Italiano</a></p>
+<p>Empieza con una prueba. Conecta los datos importantes después de copiar, verificar y recuperar un archivo de demostración.</p>
+<h2>1. Elige el tipo de copia</h2>
+<div class="table-wrap"><table><thead><tr><th>Opción</th><th>Resultado</th><th>Recuperación</th></tr></thead><tbody>
+<tr><td>Copia legible</td><td>Archivos normales en <code>current/TAREA</code>; versiones sustituidas en <code>versions/TAREA/EJECUCIÓN</code></td><td>Abre el disco o utiliza Explorar y recuperar</td></tr>
+<tr><td>Descarga SSH</td><td>Archivos descargados de otro servidor</td><td>Abre la carpeta y utiliza el programa que restaura esos archivos</td></tr>
+<tr><td>Repositorio Restic</td><td>Instantáneas cifradas y deduplicadas</td><td>Utiliza este panel o Restic con la contraseña del repositorio</td></tr>
+</tbody></table></div>
+<p>Una <strong>instantánea</strong> guarda el estado de los archivos en un momento concreto. Una <strong>suma de comprobación</strong> identifica el contenido y permite detectar diferencias. Un <strong>volcado</strong> es una exportación coherente de una base de datos. Copiar la carpeta de una base de datos activa no equivale a crear un volcado.</p>
+<p>Dos carpetas en un disco sirven para probar, pero no protegen frente a la avería del disco. El resultado de la copia y la entrega de avisos son resultados independientes. La verificación Restic del 10% lee una muestra, no todos los datos.</p>
+<h2>2. Instala con Docker Compose</h2>
+<p>Necesitas un equipo/servidor Linux con Docker, Compose v2, Git y permisos para administrar Docker. Docker Desktop sirve para una prueba. En un NAS o LXC sin privilegios puede ser necesario que un administrador prepare los montajes y permisos.</p>
+<p>Para una <strong>instalación de prueba nueva</strong>, prepara carpetas vacías:</p>
+<pre><code>sudo mkdir -p /srv/backup-impresa/source /srv/backup-impresa/target /srv/backup-impresa/restores
+printf &#x27;Mi primera copia de prueba\n&#x27; | sudo tee /srv/backup-impresa/source/hola.txt &gt;/dev/null
+sudo touch /srv/backup-impresa/source/.backup-impresa-source
+printf &#x27;backup-usb-v1\n&#x27; | sudo tee /srv/backup-impresa/target/.backup-impresa-target &gt;/dev/null
+git clone --branch v0.2.0 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
+cd backup-impresa
+cp .env.example .env
+chmod 600 .env
+docker compose config --quiet
+docker compose up -d
+docker compose exec backup-impresa cat /data/setup-token</code></pre>
+<p>El último comando muestra el token del primer acceso. Introdúcelo <strong>en el panel</strong>, nunca en una conversación o incidencia pública. Elige un nombre de administrador y una contraseña de al menos 12 caracteres. Selecciona Español en la parte superior.</p>
+<p>La dirección inicial es <code>http://127.0.0.1:9899</code> <strong>en el equipo que ejecuta Docker</strong>. Si Docker está en otro servidor, utiliza un túnel (<code>ssh -N -L 9899:127.0.0.1:9899 USUARIO@SERVIDOR</code>) o configura su dirección LAN como <code>BIND_ADDRESS</code> en <code>.env</code>. Para acceso remoto utiliza un proxy HTTPS fiable y <code>COOKIE_SECURE=true</code>. No publiques HTTP sin cifrar en Internet.</p>
+<p>Para un disco real comprueba primero <code>findmnt -T /tu/carpeta</code>: debe corresponder al dispositivo esperado. Crea los marcadores únicamente después. Esta guía no requiere formatear discos ni cambiar recursivamente propietarios de datos existentes.</p>
+<h2>3. O instala con Portainer</h2>
+<ol>
+<li>Prepara las mismas carpetas y marcadores <strong>en el servidor Docker</strong>, no en el ordenador del navegador.</li>
+<li>En Portainer selecciona el entorno y abre <strong>Stacks → Add stack → Repository</strong>.</li>
+<li>Nombre: <code>backup-impresa</code>. Repositorio: <code>https://github.com/MarlonMarketing/backup-impresa</code>.</li>
+<li>Referencia: <code>refs/tags/v0.2.0</code>. Archivo Compose: <code>compose.yaml</code>.</li>
+<li>Copia los valores de <code>.env.example</code> a las variables del stack e introduce las rutas reales. <code>TARGET_ID</code> debe coincidir con el contenido del marcador del destino.</li>
+<li>Despliega. Abre la consola del contenedor y ejecuta <code>cat /data/setup-token</code> para completar el primer acceso.</li>
+</ol>
+<p>No ejecutes dos instancias sobre el mismo estado o repositorio. Nunca montes el socket Docker en esta aplicación. Para Docker sin Compose y una VPS Linux sin Docker consulta <a href="https://github.com/MarlonMarketing/backup-impresa/blob/v0.2.0/docs/INSTALL.es.md">INSTALL.es.md</a>.</p>
+<h2>4. Realiza una copia y una recuperación de prueba</h2>
+<ol>
+<li>En <strong>Tus tareas</strong> pulsa <strong>Nueva tarea</strong>. ID <code>primera-prueba</code>, nombre <code>Mi primera prueba</code>, origen <code>Files</code>.</li>
+<li>Mantén copia y verificación automáticas <strong>desactivadas</strong>. Guarda.</li>
+<li>Pulsa <strong>Simular</strong> y abre Detalles. No deben copiarse archivos todavía.</li>
+<li>Pulsa <strong>Copiar ahora</strong> y espera el resultado correcto.</li>
+<li>Pulsa <strong>Verificar</strong>: se compara el contenido.</li>
+<li>Abre <strong>Archivos y versiones</strong>, encuentra <code>hola.txt</code> y pulsa <strong>Recuperar copia</strong>.</li>
+<li>Abre la carpeta de recuperaciones, separada del origen. El archivo recuperado debe ser idéntico y el original debe seguir presente.</li>
+</ol>
+<p>Para probar versiones modifica el archivo de demostración y repite la copia. Puedes elegir la versión anterior en el explorador. Las carpetas <code>versions</code> contienen <strong>solo archivos sustituidos</strong>, no instantáneas completas. Los archivos eliminados del origen permanecen en la copia actual. La versión 0.2 no elimina automáticamente copias legibles ni versiones: controla la capacidad.</p>
+<h2>5. Añade Oracle u otro servidor desde la interfaz</h2>
+<ol>
+<li>En <strong>Servidores</strong> pulsa <strong>Añadir servidor</strong>. Elige un ID corto, por ejemplo <code>servidor-remoto</code>, y un nombre claro.</li>
+<li>Introduce dirección, puerto SSH, usuario dedicado y carpeta absoluta, por ejemplo <code>/srv/exported-backups</code>. Las rutas remotas no admiten espacios ni caracteres de comandos.</li>
+<li>Pulsa <strong>Leer huella del servidor</strong>. Compárala desde la consola del servidor con <code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code>. Confirma solo si coincide. El escaneo por sí solo no autentica al servidor.</li>
+<li>Pulsa <strong>Generar una clave de acceso dedicada</strong>. El panel muestra la clave <strong>pública</strong>: el administrador remoto debe autorizarla para leer las copias. Este paso inicial debe realizarse en el servidor; el panel no puede concederse acceso a sí mismo.</li>
+<li>También puedes introducir una clave privada ya dedicada a las copias. Las claves SSH protegidas por frase de paso no se admiten en tareas automáticas. No utilices tu clave personal de administrador.</li>
+<li>Guarda y pulsa <strong>Probar conexión</strong>. Comprueba autenticación y acceso a la carpeta; todavía no garantiza que todos los archivos sean legibles.</li>
+<li>En <strong>Tareas remotas y Restic</strong> añade una tarea <strong>Descargar de un servidor</strong>, selecciona servidor y formato, y ejecútala manualmente.</li>
+</ol>
+<p><strong>Archivos normales</strong> descarga una carpeta conservando versiones de archivos sustituidos. Ejecuta después Verificar. No prepara bases de datos. <strong>Copias nativas Oracle</strong> utiliza los manifiestos JSON de finalización de nuestros scripts Oracle: descarga conjuntos completos y verifica cada archivo mediante SHA256. No es una API universal de descubrimiento de Virtualmin. Después de descargar aparecen los sitios y contenedores declarados en los manifiestos.</p>
+<p>Las descargas permanecen en casa aunque Oracle elimine sus copias antiguas. Actualizar el catálogo temporal no elimina conjuntos descargados. No hay eliminación automática de descargas: vigila el espacio.</p>
+<p>También puedes activar la verificación semanal de cada tarea, con día y hora independientes. Está desactivada inicialmente. Las copias automáticas que utilizan un origen remoto programado esperan una descarga correcta durante ese día local.</p>
+<h2>6. Elige los discos físicos</h2>
+<p>Inicialmente las descargas y repositorios locales están en el volumen de datos de la aplicación. Permite probar sin modificar una instalación existente, pero puede llenar el disco del sistema y no constituye una copia en otro disco.</p>
+<p>Para producción utiliza <a href="https://github.com/MarlonMarketing/backup-impresa/blob/v0.2.0/compose.storage.yaml">compose.storage.yaml</a> con carpetas dedicadas. Después de verificar sus montajes, crea <code>.backup-impresa-staging</code> con contenido <code>backup-staging-v1</code> en la carpeta de descargas, y <code>.backup-impresa-repositories</code> con contenido <code>backup-repositories-v1</code> en la de repositorios. Configura <code>STAGING_PATH</code> y <code>REPOSITORIES_PATH</code> en <code>.env</code>, y ejecuta:</p>
+<pre><code>docker compose -f compose.yaml -f compose.storage.yaml config --quiet
+docker compose -f compose.yaml -f compose.storage.yaml up -d</code></pre>
+<p>En Portainer añade al stack los montajes y variables de ese archivo adicional. Las carpetas del host deben existir previamente. La aplicación rechaza una raíz externa sin el marcador correcto. No monta discos, cambia asignaciones UID de NTFS ni modifica puntos de montaje LXC de Proxmox.</p>
+<p>Después de crear una tarea remota, aparece como origen en las tareas de copia legible. Puedes usarla para una segunda copia en USB NTFS. Los archivos <code>.tar.gz</code> pueden contener contraseñas y configuraciones privadas aunque sean archivos normales.</p>
+<h2>7. Crea una copia Restic</h2>
+<ol>
+<li>Añade un repositorio, por ejemplo ID <code>fotos-prueba</code>. Selecciona disco local montado o servidor/carpeta SFTP.</li>
+<li>Introduce una contraseña robusta y guárdala también en tu gestor de contraseñas. Sin ella no podrás recuperar los datos.</li>
+<li>Activa <strong>Backup Impresa es el único gestor</strong> solo para un repositorio que gestionará este programa. Para repositorios Backrest existentes déjalo desactivado: podrás consultar, verificar y recuperar, sin iniciar copias ni limpieza desde este panel.</li>
+<li>Guarda. Solo para un repositorio <strong>nuevo y vacío</strong>, pulsa Inicializar y escribe su ID. Los existentes nunca se inicializan automáticamente.</li>
+<li>Crea una tarea Restic con repositorio y origen, y ejecútala manualmente. Puedes elegir una descarga remota después de que termine correctamente.</li>
+<li>Pulsa <strong>Listar instantáneas</strong> y <strong>Recuperar copia</strong> junto a la fecha deseada. La recuperación va a una carpeta nueva y no sobrescribe el origen.</li>
+<li>Pulsa <strong>Verificar integridad</strong>. Se comprueba la estructura y una muestra del 10% de los datos. Para una lectura completa un administrador puede ejecutar <code>restic check --read-data</code>, indicando repositorio y contraseña de forma segura.</li>
+</ol>
+<p>La vista previa de conservación propone siete copias diarias y cuatro semanales para instantáneas con etiqueta <code>backup-impresa</code>. No elimina nada. Aplicarla requiere un repositorio gestionado, escribir su ID y una vista previa de menos de cinco minutos. Solo se eliminan los ID mostrados y se liberan datos no utilizados con prune. Es irreversible y <strong>no está programado automáticamente</strong>. No asignes la limpieza simultáneamente a Backrest y Backup Impresa. Los bloqueos Restic siguen activos; no se fuerzan desbloqueos.</p>
+<p>Puedes cambiar las cantidades en el repositorio: diarias 1–365, semanales 0–104 y mensuales 0–36. Cero desactiva la categoría semanal/mensual. Valores iniciales: siete diarias, cuatro semanales y ninguna mensual. Editar el repositorio invalida una vista previa anterior. Los archivos comprimidos regenerados pueden deduplicarse menos que los originales sin cambios.</p>
+<h2>8. Configura email y Telegram desde el navegador</h2>
+<p>Abre <strong>Configuración de avisos y n8n</strong>. Introduce servidor SMTP, puerto, usuario, contraseña, remitente y destinatario, y guarda. El puerto 587 requiere STARTTLS; el 465 utiliza TLS inmediato. La validación de certificados permanece activa. Para Gmail utiliza una contraseña de aplicación cuando tu cuenta lo permita, no la contraseña normal.</p>
+<p>Las credenciales existentes en variables del stack siguen funcionando. Deja un campo de contraseña vacío para conservar el secreto actual. Para Telegram crea tu bot, inicia una conversación e introduce token e ID del chat. Guarda, pulsa <strong>Enviar prueba</strong> y confirma que recibes el mensaje.</p>
+<p>Por defecto se envían errores y pruebas; puedes activar también los éxitos. Un error de aviso no convierte una copia correcta en fallida. Las tareas habilitadas sin copia/descarga correcta durante 30 horas generan una advertencia. El panel no detecta que su propio servidor esté apagado: necesitas un monitor externo independiente.</p>
+<h2>9. Conecta n8n</h2>
+<p><strong>Eventos salientes:</strong> crea en n8n un workflow con nodo Webhook POST y Header Auth <code>Authorization: Bearer TU_TOKEN_SALIENTE</code>. Activa/publica el workflow y copia su URL <strong>HTTPS de producción</strong>. Introduce URL y token correspondiente en Backup Impresa. El mensaje contiene ID de evento, tarea, operación, resultado, fecha y error; nunca contraseñas. Utiliza <code>eventId</code> para evitar procesamientos duplicados.</p>
+<p>Las entregas fallidas se reintentan hasta cuatro intentos totales. Se rechazan redirecciones. Cambiar la URL no reenvía al nuevo destino eventos antiguos pendientes. El historial muestra los resultados.</p>
+<p><strong>Solicitudes entrantes:</strong> indica los ID permitidos separados por comas. Para tareas locales utiliza <code>legacy:ID_TAREA</code>. Pulsa <strong>Crear / cambiar token entrante</strong> y guárdalo en el almacén de credenciales de n8n, nunca en una conversación. El token nuevo invalida el anterior.</p>
+<p>En un nodo HTTP Request de n8n:</p>
+<pre><code>GET https://TU-PANEL/api/integrations/status
+Authorization: Bearer TU_TOKEN_ENTRANTE
+
+POST https://TU-PANEL/api/integrations/run
+Authorization: Bearer TU_TOKEN_ENTRANTE
+Content-Type: application/json
+Idempotency-Key: identificador-unico-de-ejecucion-workflow
+
+{&quot;taskId&quot;:&quot;servidor-remoto&quot;,&quot;mode&quot;:&quot;pull&quot;}</code></pre>
+<p>Utiliza una clave distinta para cada nueva ejecución deseada; reutilízala solo al reintentar esa misma solicitud. La respuesta 202 significa <strong>en cola</strong>, no completado. Consulta el estado y comprueba el ID antes del siguiente paso. Acciones permitidas: <code>pull</code> remoto, <code>backup</code>/<code>check</code> Restic y <code>copy</code>/<code>verify</code>/<code>preview</code> local. La API no puede cambiar configuración, inicializar repositorios, recuperar o eliminar instantáneas ni ejecutar comandos shell arbitrarios.</p>
+<h2>10. Ejemplos prácticos</h2>
+<ul>
+<li><strong>Fotos familiares:</strong> prepara un volcado SQL coherente de Immich; copia toda la biblioteca multimedia y el volcado a NTFS. Opcionalmente crea una instantánea Restic en otro disco. Solo SQL no protege fotos; solo multimedia no recupera usuarios ni álbumes.</li>
+<li><strong>Sitios web y Docker de una VPS:</strong> Virtualmin y procedimientos de las aplicaciones generan archivos coherentes. Casa descarga manifiestos completos, verifica las copias y las copia a USB. La conservación doméstica es independiente. Cada sitio necesita el procedimiento de restauración del programa que creó su archivo.</li>
+<li><strong>Internet inestable:</strong> la conexión sale de casa; una IP doméstica dinámica no requiere puertos entrantes. Una descarga fallida no aparece como correcta. Reintenta manualmente o en la siguiente programación; las copias completas permanecen.</li>
+<li><strong>Automatizaciones n8n:</strong> error → email directo de Backup Impresa → n8n prepara un resumen o reintenta una tarea permitida. Usa identificadores para evitar duplicados. Las copias y email/Telegram funcionan sin n8n.</li>
+</ul>
+<h2>11. Actualización y problemas frecuentes</h2>
+<p>Antes de actualizar espera a que terminen las tareas y guarda <strong>todo el volumen <code>/data</code></strong> y la configuración privada del despliegue. Conserva volumen, rutas, nombre de proyecto y contraseñas. Lee las notas, descarga la versión elegida y recrea el contenedor. Nunca uses <code>docker compose down -v</code>. No elimines repositorios Backrest durante la migración.</p>
+<p>Los secretos se cifran en <code>secrets.json</code> usando <code>secrets/master.key</code> o <code>MASTER_KEY_FILE</code>. Guarda también una copia separada y protegida de la clave. Una clave en el mismo volumen no protege frente al robo del volumen entero. Si falta, el programa se detiene en lugar de crear otra silenciosamente. No publiques estado, claves, <code>.env</code>, contraseñas o registros reales en GitHub.</p>
+<p>Si falla SSH comprueba dirección, puerto, huella, autorización de clave, permisos y <code>rsync</code> remoto. Si falla Restic comprueba contraseña, versión compatible, permisos, espacio y bloqueos; no fuerces desbloqueos a ciegas. Si falta un disco reconecta el correcto: no crees un marcador nuevo en una carpeta alternativa. Si falla una recuperación conserva los archivos originales y prueba en un entorno aislado.</p>
+<p>El panel coordina herramientas; no puede garantizar copias perfectas de cualquier aplicación. Repite periódicamente las pruebas de recuperación y conserva una copia independiente/sin conexión.</p></article></main></body></html>

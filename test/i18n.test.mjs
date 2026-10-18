@@ -18,6 +18,11 @@ test('translation keys and interpolation placeholders match in all languages',()
  assert.equal(translate('es','space',{free:'1 GB',total:'2 GB'}),'1 GB libres de 2 GB');
  const html=fs.readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
  for(const [,key]of html.matchAll(/data-i18n="(\w+)"/g))assert(keys.includes(key),key);
+ const control=fs.readFileSync(new URL('../public/control.js',import.meta.url),'utf8');
+ for(const [,key]of control.matchAll(/\bt\("(\w+)"\s*[,)]/g))assert(keys.includes(key),key);
+ for(const file of ['index.html','app.js','i18n.js','control.js','control-i18n.js']){
+  const contents=fs.readFileSync(new URL('../public/'+file,import.meta.url),'utf8');assert(!/Ã.|Â[· ]|â€/.test(contents),'Broken UTF-8 in '+file);
+ }
 });
 test('localized diagnostics preserve user names and original payload',()=>{
  const original={error:'Credenziali non valide',name:'Nome utente da 3 a 40 caratteri',runs:[{error:'Coda piena'}]};

@@ -1,0 +1,18 @@
+# Optional production storage. Create the folders AND identity markers after checking mounts.
+# Usage: docker compose -f compose.yaml -f compose.storage.yaml up -d
+services:
+  backup-impresa:
+    environment:
+      STAGING_ROOT: /staging
+      STAGING_ID: ${STAGING_ID:-backup-staging-v1}
+      REPOSITORIES_ROOT: /repositories
+      REPOSITORIES_ID: ${REPOSITORIES_ID:-backup-repositories-v1}
+    volumes:
+      - type: bind
+        source: ${STAGING_PATH:-/srv/backup-impresa/remote-copies}
+        target: /staging
+        bind: {create_host_path: false}
+      - type: bind
+        source: ${REPOSITORIES_PATH:-/srv/backup-impresa/repositories}
+        target: /repositories
+        bind: {create_host_path: false}

@@ -4,7 +4,7 @@
 set -euo pipefail
 
 [[ "$EUID" -eq 0 ]] || { echo 'Run with sudo on a Linux systemd host.' >&2; exit 1; }
-for command in node npm rsync runuser useradd install systemctl; do
+for command in node npm rsync restic ssh ssh-keygen ssh-keyscan runuser useradd install systemctl; do
   command -v "$command" >/dev/null || { echo "Missing prerequisite: $command" >&2; exit 1; }
 done
 [[ -d /run/systemd/system ]] || { echo 'systemd must be the running service manager.' >&2; exit 1; }

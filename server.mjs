@@ -6,6 +6,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { Store, Engine, validateJob, dueJobs, idPattern } from './lib/core.mjs';
 import { Notifier } from './lib/notify.mjs';
+import { Control } from './lib/control.mjs';
 
 const base=path.dirname(fileURLToPath(import.meta.url));
 const contentTypes={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8'};
@@ -31,6 +32,10 @@ export function createApplication(options={}) {
   const engine=options.engine||new Engine({store,sources,dataDir,targetRoot:env.TARGET_ROOT||'/destinations/usb',
     targetId:env.TARGET_ID||'impresa-usb-v1',restoreRoot:env.RESTORE_ROOT||'/restores',
     minFreeBytes:Number(env.MIN_FREE_GB??10)*1024**3,notify:run=>notifier.send(run)});
+  const control=new Control({store,dataDir,sources,restoreRoot:env.RESTORE_ROOT||'/restores',env,runner:options.commandRunner,legacyBusy:()=>Boolean(engine.active||engine.queue?.length),legacyTasks:()=>store.state.jobs.map(j=>({id:'legacy:'+j.id,name:j.name,type:'local'})),legacyRun:(id,mode)=>engine.enqueue(store.state.jobs.find(j=>j.id===id),mode,{},'n8n'),notify:run=>{if(!options.notifier)notifier.env=control.effectiveEnv();return notifier.send(run);}});
+  if(!options.notifier){notifier.env=control.effectiveEnv();notifier.webhookTransport=event=>control.webhook(event);engine.notify=run=>{notifier.env=control.effectiveEnv();return notifier.send(run);};}
+  function syncRemoteSources(){for(const task of control.state.tasks.filter(t=>t.type==='pull'))if(!sources.some(s=>s.id==='remote:'+task.id))sources.push({id:'remote:'+task.id,name:task.name+' · SSH',path:path.join(control.staging,task.id),requiredPaths:['.backup-impresa-complete'],producerId:task.id});}
+  syncRemoteSources();
   const tokenFile=path.join(dataDir,'setup-token');
   let setupToken='';
   if(!store.state.admin){
@@ -73,7 +78,7 @@ export function createApplication(options={}) {
     res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
     const url=new URL(req.url,'http://localhost');
     try{
-      if(req.method==='GET'&&url.pathname==='/api/health')return send(res,200,{status:'ok',version:'0.1.4'});
+      if(req.method==='GET'&&url.pathname==='/api/health')return send(res,200,{status:'ok',version:'0.2.0'});
       if(req.method==='GET'&&url.pathname==='/api/auth'){
         const current=session(req);return send(res,200,{setup:!store.state.admin,authenticated:Boolean(current),csrf:current?.csrf||null});
       }
@@ -98,10 +103,16 @@ export function createApplication(options={}) {
         return send(res,200,{ok:true,csrf});
       }
       if(!url.pathname.startsWith('/api/')){
-        const routes={'/':'index.html','/i18n.js':'i18n.js','/app.js':'app.js','/style.css':'style.css'};
+        const routes={'/':'index.html','/i18n.js':'i18n.js','/app.js':'app.js','/guide/en':'guide-en.html','/guide/it':'guide-it.html','/guide/es':'guide-es.html','/control.js':'control.js','/control-i18n.js':'control-i18n.js','/style.css':'style.css'};
         const file=routes[url.pathname];if(!file||req.method!=='GET')return send(res,404,{error:'Non trovato'});
         res.writeHead(200,{'Content-Type':contentTypes[path.extname(file)],'Cache-Control':'no-cache'});
         return fs.createReadStream(path.join(base,'public',file)).pipe(res);
+      }
+      if(url.pathname.startsWith('/api/integrations/')){
+        if(!control.validToken((req.headers.authorization||'').replace(/^Bearer /,'')))return send(res,401,{error:'Invalid integration token'});
+        if(req.method==='GET'&&url.pathname==='/api/integrations/status')return send(res,200,{active:control.active||engine.active,tasks:[...control.state.tasks.map(t=>({id:t.id,name:t.name,type:t.type})),...control.legacyTasks()],runs:[...control.state.runs,...store.state.runs].sort((a,b)=>String(b.queuedAt).localeCompare(String(a.queuedAt))).slice(0,30).map(r=>({id:r.id,taskId:r.taskId||'legacy:'+r.jobId,status:r.status,mode:r.mode,finishedAt:r.finishedAt}))});
+        if(req.method==='POST'&&url.pathname==='/api/integrations/run')return send(res,202,control.incoming(await readBody(req),req.headers['idempotency-key']));
+        return send(res,404,{error:'Integration endpoint unavailable'});
       }
       const auth=session(req);if(!auth)return send(res,401,{error:'Accesso richiesto'});
       if(req.method!=='GET'&&(!sameOrigin(req)||req.headers['x-csrf-token']!==auth.csrf))return send(res,403,{error:'Richiesta non valida. Ricaricare la pagina.'});
@@ -110,10 +121,19 @@ export function createApplication(options={}) {
       }
       if(req.method==='GET'&&url.pathname==='/api/status'){
         let target;try{target={online:true,...engine.targetCheck()};delete target.root;}catch(e){target={online:false,error:e.message};}
-        return send(res,200,{version:'0.1.4',timezone,pilot:env.PILOT_MODE==='true',targetName:env.TARGET_NAME||'Backup destination',sources:sources.map(s=>({id:s.id,name:s.name})),
+        return send(res,200,{version:'0.2.0',timezone,pilot:env.PILOT_MODE==='true',targetName:env.TARGET_NAME||'Backup destination',sources:sources.map(s=>({id:s.id,name:s.name})),control:control.publicState(),
           target,jobs:store.state.jobs,runs:store.state.runs.slice(0,200),alerts:store.state.alerts,
           active:engine.active,notifications:notifier.channels(),policies:{delete:false,versions:'Conservate tutte; nessuna pulizia automatica',catchup:'Esegue il lavoro giornaliero arretrato della giornata alla riaccensione'}});
       }
+      if(req.method==='POST'&&url.pathname==='/api/control/server')return send(res,200,{server:control.saveServer(await readBody(req))});
+      if(req.method==='POST'&&url.pathname==='/api/control/key')return send(res,200,await control.generateKey((await readBody(req)).id));
+      if(req.method==='POST'&&url.pathname==='/api/control/scan')return send(res,200,await control.scan(await readBody(req)));
+      if(req.method==='POST'&&url.pathname==='/api/control/test-server')return send(res,200,await control.testServer((await readBody(req)).id));
+      if(req.method==='POST'&&url.pathname==='/api/control/repository')return send(res,200,{repository:control.saveRepository(await readBody(req))});
+      if(req.method==='POST'&&url.pathname==='/api/control/task'){const task=control.saveTask(await readBody(req));syncRemoteSources();return send(res,200,{task});}
+      if(req.method==='POST'&&url.pathname==='/api/control/run')return send(res,202,{run:control.enqueue(await readBody(req))});
+      if(req.method==='POST'&&url.pathname==='/api/control/settings'){const settings=control.settings(await readBody(req));if(!options.notifier)notifier.env=control.effectiveEnv();return send(res,200,{settings});}
+      if(req.method==='POST'&&url.pathname==='/api/control/token'){const b=await readBody(req);if(b.confirm!=='rotate')throw Error('Explicit token rotation required.');return send(res,200,{token:control.apiToken(true)});}
       if(req.method==='POST'&&url.pathname==='/api/jobs'){
         const body=await readBody(req),existing=store.state.jobs.find(j=>j.id===body.id);
         if(existing&&store.state.runs.some(r=>r.jobId===existing.id&&['running','queued'].includes(r.status)))throw Error('Attendere la fine del lavoro prima di modificarlo');
@@ -123,6 +143,7 @@ export function createApplication(options={}) {
         store.save();return send(res,200,{job});
       }
       if(req.method==='POST'&&url.pathname==='/api/run'){
+        if(control.active||control.queue.length)throw Error('Another operation is active. Wait for it to finish.');
         const body=await readBody(req),job=store.state.jobs.find(j=>j.id===body.jobId);
         if(!job)throw Error('Lavoro non trovato');
         if(body.mode==='restore'&&typeof body.relative!=='string')throw Error('Percorso recupero obbligatorio');
@@ -140,10 +161,15 @@ export function createApplication(options={}) {
   server.requestTimeout=30000;server.headersTimeout=15000;
   async function tick(now=new Date()){
     for(const {job,mode,date}of dueJobs(store.state.jobs,now,timezone)){
-      if(store.state.runs.some(r=>r.jobId===job.id&&['queued','running'].includes(r.status)))continue;
+      if(control.active||control.queue.length||store.state.runs.some(r=>r.jobId===job.id&&['queued','running'].includes(r.status)))continue;
+      const source=sources.find(s=>s.id===job.sourceId),producer=control.state.tasks.find(t=>t.id===source?.producerId);
+      if(producer?.enabled&&!control.state.runs.some(r=>r.taskId===producer.id&&r.mode==='pull'&&r.status==='success'&&new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(r.finishedAt))===date))continue;
       try{engine.enqueue(job,mode,{},'schedule');job.lastScheduled[mode]=date;store.save();}
       catch(e){store.alert(`Pianificazione ${job.name}: ${e.message}`);}
     }
+    control.tick(now,timezone);
+    await control.retryWebhooks();
+    await control.monitor(now);
     // A second, independent check within the application detects failed/stale copies.
     // It cannot detect this application itself being down: external monitoring is still needed.
     if(watchdogBusy)return;watchdogBusy=true;
@@ -164,16 +190,16 @@ export function createApplication(options={}) {
     }finally{watchdogBusy=false;}
   }
   function startScheduler(){timer=setInterval(()=>tick().catch(e=>store.alert(e.message)),60000);timer.unref();tick().catch(e=>store.alert(e.message));}
-  return {server,store,engine,tick,startScheduler,close:()=>{clearInterval(timer);server.close();}};
+  return {server,store,engine,control,tick,startScheduler,close:()=>{clearInterval(timer);server.close();}};
 }
 if(process.argv[1]&&fs.realpathSync(process.argv[1])===fileURLToPath(import.meta.url)){
   const app=createApplication();app.server.listen(Number(process.env.PORT||9899),process.env.HOST||'0.0.0.0',()=>{
-    console.log('Backup Impresa 0.1.4 in ascolto');app.startScheduler();
+    console.log('Backup Impresa 0.2.0 in ascolto');app.startScheduler();
   });
   let stopping=false;
   const stop=()=>{if(stopping)return;stopping=true;app.close();
-    const wait=setInterval(()=>{if(!app.engine.active){clearInterval(wait);process.exit(0);}},500);wait.unref();
-    if(!app.engine.active)process.exit(0);
+    const wait=setInterval(()=>{if(!app.engine.active&&!app.control.active){clearInterval(wait);process.exit(0);}},500);wait.unref();
+    if(!app.engine.active&&!app.control.active)process.exit(0);
     setTimeout(()=>process.exit(1),25000).unref();
   };
   process.on('SIGTERM',stop);process.on('SIGINT',stop);

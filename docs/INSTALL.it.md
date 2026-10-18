@@ -1,5 +1,6 @@
 # Installazione Docker e VPS senza Portainer
 
+Per configurare server SSH, Restic e n8n dalla grafica, segui [la guida completa 0.2](GUIDE.it.md).
 [English, guida tecnica completa](INSTALL.md) · [Español](INSTALL.es.md)
 
 Puoi usare **Docker Compose**, **Docker senza Compose** oppure una **VPS Linux con systemd, senza Docker**. Il software gira sul tuo server. Una VPS non fornisce automaticamente un secondo disco di backup: occorre scegliere dove conservare le copie. I servizi remoti richiedono esportazioni/dump o filesystem già collegati; il pannello non li acquisisce automaticamente.
@@ -28,7 +29,7 @@ Il secondo valore deve coincidere con `TARGET_ID`. Non crearlo nella cartella di
 Servono Docker Engine, Compose v2 e git:
 
 ```sh
-git clone --branch v0.1.4 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
+git clone --branch v0.2.0 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
 cd backup-impresa
 cp .env.example .env
 chmod 600 .env
@@ -74,7 +75,7 @@ Scarica il repository come nella sezione 2, leggi `deploy/install-native.sh` ed 
 sudo bash deploy/install-native.sh
 ```
 
-Viene creato l'utente di servizio `backup-impresa`, installato il programma in `/opt/backup-impresa/releases/0.1.4` e predisposto systemd. **Il servizio resta fermo**: l'installazione non crea marcatori sui dischi e non sovrascrive installazioni esistenti. Se npm fallisce può rimanere una cartella parziale da controllare prima di riprovare.
+Viene creato l'utente di servizio `backup-impresa`, installato il programma in `/opt/backup-impresa/releases/0.2.0` e predisposto systemd. **Il servizio resta fermo**: l'installazione non crea marcatori sui dischi e non sovrascrive installazioni esistenti. Se npm fallisce può rimanere una cartella parziale da controllare prima di riprovare.
 
 Prepara le cartelle e assegna all'utente soltanto lettura della sorgente e scrittura su destinazione/recuperi. Solo per una prova con cartelle nuove e vuote:
 
