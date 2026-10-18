@@ -15,6 +15,7 @@ import {
   relativePath,
   validateServer,
   validateManifest,
+  oracleFreshness,
 } from "../lib/control.mjs";
 import { Vault, command, temporaryFiles } from "../lib/secure.mjs";
 import { createApplication } from "../server.mjs";
@@ -646,6 +647,7 @@ test("real SSH: pinned identity, Oracle manifest transfer, corruption detection 
   fs.writeFileSync(path.join(remote, runFolder, "site.tar.gz"), content);
   const manifest = {
     status: "ok",
+    completed: new Date().toISOString(),
     path: remote + "/" + runFolder,
     domains: ["example.test"],
     files: [
@@ -674,6 +676,7 @@ test("real SSH: pinned identity, Oracle manifest transfer, corruption detection 
     name: "Oracle",
     serverId: "oracle",
     profile: "oracle",
+    requireDocker: false,
   });
   const copy = await success(control, { taskId: "oracle", mode: "pull" });
   assert.equal(copy.result.checksumVerified, true);
@@ -733,4 +736,65 @@ test("real SSH: pinned identity, Oracle manifest transfer, corruption detection 
     mode: "snapshots",
   });
   assert.equal(snapshots.result.snapshots.length, 1);
+});
+
+test("Oracle freshness uses remote completion dates and requires both selected categories", () => {
+  const now = Date.parse("2026-10-18T12:00:00Z"),
+    fresh = "2026-10-18T04:30:00Z";
+  const sites = { relative: "sites-daily/2026-10-18", completed: fresh };
+  const docker = { relative: "docker-daily/2026-10-18", completed: fresh };
+  assert.deepEqual(Object.keys(oracleFreshness([sites, docker], {}, now)), [
+    "sites",
+    "docker",
+  ]);
+  assert.throws(() => oracleFreshness([sites], {}, now), /category missing/);
+  assert.throws(
+    () =>
+      oracleFreshness(
+        [sites, { ...docker, completed: "2026-10-15T04:30:00Z" }],
+        {},
+        now,
+      ),
+    /too old: docker/,
+  );
+  assert.throws(
+    () => oracleFreshness([{ ...sites, completed: "bad" }, docker], {}, now),
+    /date invalid/,
+  );
+  assert.throws(
+    () =>
+      oracleFreshness(
+        [{ ...sites, completed: "2026-10-19T00:00:00Z" }, docker],
+        {},
+        now,
+      ),
+    /date invalid/,
+  );
+  assert.equal(
+    oracleFreshness([sites], { requireDocker: false }, now).sites.maxAgeHours,
+    30,
+  );
+});
+test("Oracle age configuration cannot silently disable all source freshness checks", (t) => {
+  const { control } = fixture(t);
+  control.saveServer(serverBody);
+  const body = {
+    id: "oracle",
+    name: "Oracle",
+    serverId: "oracle",
+    profile: "oracle",
+  };
+  assert.throws(
+    () =>
+      control.saveTask({ ...body, requireSites: false, requireDocker: false }),
+    /at least one/,
+  );
+  assert.throws(
+    () => control.saveTask({ ...body, maxBackupAgeHours: 0 }),
+    /1 to 720/,
+  );
+  const task = control.saveTask(body);
+  assert.equal(task.maxBackupAgeHours, 30);
+  assert.equal(task.requireSites, true);
+  assert.equal(task.requireDocker, true);
 });

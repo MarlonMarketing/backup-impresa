@@ -141,6 +141,23 @@ export function mountControl({ api, refresh, message, language }) {
           ],
           old.profile || "oracle",
         ) +
+        field(
+          "maxBackupAgeHours",
+          "backupMaxAge",
+          old.maxBackupAgeHours ?? 30,
+          "number",
+          "backupAgeHelp",
+        ) +
+        check(
+          "requireSites",
+          "requireSiteBackups",
+          old.requireSites !== false,
+        ) +
+        check(
+          "requireDocker",
+          "requireDockerBackups",
+          old.requireDocker !== false,
+        ) +
         select(
           "repositoryId",
           "controlRepositories",
@@ -242,6 +259,14 @@ export function mountControl({ api, refresh, message, language }) {
     function conditional() {
       const f = dialog.querySelector("form");
       if (kind === "Tasks") {
+        for (const name of [
+          "maxBackupAgeHours",
+          "requireSites",
+          "requireDocker",
+        ])
+          f.elements[name].closest("label").hidden =
+            f.elements.type.value !== "pull" ||
+            f.elements.profile.value !== "oracle";
         for (const name of ["serverId", "profile"])
           f.elements[name].closest("label").hidden =
             f.elements.type.value !== "pull";
@@ -257,6 +282,9 @@ export function mountControl({ api, refresh, message, language }) {
     dialog
       .querySelector("[name=type]")
       ?.addEventListener("change", conditional);
+    dialog
+      .querySelector("[name=profile]")
+      ?.addEventListener("change", conditional);
     conditional();
     dialog.showModal();
   }
@@ -270,6 +298,8 @@ export function mountControl({ api, refresh, message, language }) {
       "managed",
       "hostKeyVerified",
       "verifyEnabled",
+      "requireSites",
+      "requireDocker",
     ])
       body[name] = f.elements[name]?.checked === true;
     const route = {

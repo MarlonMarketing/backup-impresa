@@ -27,7 +27,7 @@ sudo mkdir -p /srv/backup-impresa/source /srv/backup-impresa/target /srv/backup-
 printf 'My first backup test\n' | sudo tee /srv/backup-impresa/source/hello.txt >/dev/null
 sudo touch /srv/backup-impresa/source/.backup-impresa-source
 printf 'backup-usb-v1\n' | sudo tee /srv/backup-impresa/target/.backup-impresa-target >/dev/null
-git clone --branch v0.2.0 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
+git clone --branch v0.2.1 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
 cd backup-impresa
 cp .env.example .env
 chmod 600 .env
@@ -47,7 +47,7 @@ For a real external disk, first check `findmnt -T /your/folder`. Create markers 
 1. Prepare the same folders and markers on the **Docker host**, not your desktop computer.
 2. In Portainer select the environment, then **Stacks → Add stack → Repository**.
 3. Name: `backup-impresa`. Repository: `https://github.com/MarlonMarketing/backup-impresa`.
-4. Reference: `refs/tags/v0.2.0`. Compose file: `compose.yaml`.
+4. Reference: `refs/tags/v0.2.1`. Compose file: `compose.yaml`.
 5. Copy the values from `.env.example` into stack environment variables. Set your real host paths. Keep `TARGET_ID` equal to the target marker's content.
 6. Deploy. Open the container console and run `cat /data/setup-token` to complete the first login.
 
@@ -80,6 +80,9 @@ To test versions, change the test file, run another copy and choose its previous
 Download files stay on disk independently of remote retention. No automatic download deletion is enabled. The Oracle catalog is refreshed separately; refreshing it never deletes downloaded backup sets.
 
 You can also enable weekly verification in each task, with its own day and time. It is off for new tasks. Automatic copies using a scheduled remote source wait for a successful download on that local calendar day.
+
+
+Oracle tasks require a recent completed backup for both sites and Docker/host by default. The maximum age defaults to 30 hours and can be changed in the task (1–720); disable a category only if you intentionally do not back it up. Missing categories, invalid/future dates or stale source backups fail the download, even when an older archive transfers successfully.
 
 ## 6. Choose the physical disks
 

@@ -16,7 +16,7 @@
 printf &#x27;Mi primera copia de prueba\n&#x27; | sudo tee /srv/backup-impresa/source/hola.txt &gt;/dev/null
 sudo touch /srv/backup-impresa/source/.backup-impresa-source
 printf &#x27;backup-usb-v1\n&#x27; | sudo tee /srv/backup-impresa/target/.backup-impresa-target &gt;/dev/null
-git clone --branch v0.2.0 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
+git clone --branch v0.2.1 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
 cd backup-impresa
 cp .env.example .env
 chmod 600 .env
@@ -31,7 +31,7 @@ docker compose exec backup-impresa cat /data/setup-token</code></pre>
 <li>Prepara las mismas carpetas y marcadores <strong>en el servidor Docker</strong>, no en el ordenador del navegador.</li>
 <li>En Portainer selecciona el entorno y abre <strong>Stacks → Add stack → Repository</strong>.</li>
 <li>Nombre: <code>backup-impresa</code>. Repositorio: <code>https://github.com/MarlonMarketing/backup-impresa</code>.</li>
-<li>Referencia: <code>refs/tags/v0.2.0</code>. Archivo Compose: <code>compose.yaml</code>.</li>
+<li>Referencia: <code>refs/tags/v0.2.1</code>. Archivo Compose: <code>compose.yaml</code>.</li>
 <li>Copia los valores de <code>.env.example</code> a las variables del stack e introduce las rutas reales. <code>TARGET_ID</code> debe coincidir con el contenido del marcador del destino.</li>
 <li>Despliega. Abre la consola del contenedor y ejecuta <code>cat /data/setup-token</code> para completar el primer acceso.</li>
 </ol>
@@ -60,6 +60,7 @@ docker compose exec backup-impresa cat /data/setup-token</code></pre>
 <p><strong>Archivos normales</strong> descarga una carpeta conservando versiones de archivos sustituidos. Ejecuta después Verificar. No prepara bases de datos. <strong>Copias nativas Oracle</strong> utiliza los manifiestos JSON de finalización de nuestros scripts Oracle: descarga conjuntos completos y verifica cada archivo mediante SHA256. No es una API universal de descubrimiento de Virtualmin. Después de descargar aparecen los sitios y contenedores declarados en los manifiestos.</p>
 <p>Las descargas permanecen en casa aunque Oracle elimine sus copias antiguas. Actualizar el catálogo temporal no elimina conjuntos descargados. No hay eliminación automática de descargas: vigila el espacio.</p>
 <p>También puedes activar la verificación semanal de cada tarea, con día y hora independientes. Está desactivada inicialmente. Las copias automáticas que utilizan un origen remoto programado esperan una descarga correcta durante ese día local.</p>
+<p>Las tareas Oracle exigen inicialmente una copia reciente tanto de sitios como de Docker/servidor. La antigüedad máxima es de 30 horas y se cambia en la tarea (1–720); desactiva una categoría solo si intencionadamente no la proteges. Las categorías ausentes, fechas inválidas/futuras o copias de origen antiguas provocan un fallo aunque un archivo anterior se transfiera correctamente.</p>
 <h2>6. Elige los discos físicos</h2>
 <p>Inicialmente las descargas y repositorios locales están en el volumen de datos de la aplicación. Permite probar sin modificar una instalación existente, pero puede llenar el disco del sistema y no constituye una copia en otro disco.</p>
 <p>Para producción utiliza <a href="https://github.com/MarlonMarketing/backup-impresa/blob/v0.2.0/compose.storage.yaml">compose.storage.yaml</a> con carpetas dedicadas. Después de verificar sus montajes, crea <code>.backup-impresa-staging</code> con contenido <code>backup-staging-v1</code> en la carpeta de descargas, y <code>.backup-impresa-repositories</code> con contenido <code>backup-repositories-v1</code> en la de repositorios. Configura <code>STAGING_PATH</code> y <code>REPOSITORIES_PATH</code> en <code>.env</code>, y ejecuta:</p>

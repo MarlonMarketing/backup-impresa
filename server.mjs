@@ -78,7 +78,7 @@ export function createApplication(options={}) {
     res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
     const url=new URL(req.url,'http://localhost');
     try{
-      if(req.method==='GET'&&url.pathname==='/api/health')return send(res,200,{status:'ok',version:'0.2.0'});
+      if(req.method==='GET'&&url.pathname==='/api/health')return send(res,200,{status:'ok',version:'0.2.1'});
       if(req.method==='GET'&&url.pathname==='/api/auth'){
         const current=session(req);return send(res,200,{setup:!store.state.admin,authenticated:Boolean(current),csrf:current?.csrf||null});
       }
@@ -121,7 +121,7 @@ export function createApplication(options={}) {
       }
       if(req.method==='GET'&&url.pathname==='/api/status'){
         let target;try{target={online:true,...engine.targetCheck()};delete target.root;}catch(e){target={online:false,error:e.message};}
-        return send(res,200,{version:'0.2.0',timezone,pilot:env.PILOT_MODE==='true',targetName:env.TARGET_NAME||'Backup destination',sources:sources.map(s=>({id:s.id,name:s.name})),control:control.publicState(),
+        return send(res,200,{version:'0.2.1',timezone,pilot:env.PILOT_MODE==='true',targetName:env.TARGET_NAME||'Backup destination',sources:sources.map(s=>({id:s.id,name:s.name})),control:control.publicState(),
           target,jobs:store.state.jobs,runs:store.state.runs.slice(0,200),alerts:store.state.alerts,
           active:engine.active,notifications:notifier.channels(),policies:{delete:false,versions:'Conservate tutte; nessuna pulizia automatica',catchup:'Esegue il lavoro giornaliero arretrato della giornata alla riaccensione'}});
       }
@@ -194,7 +194,7 @@ export function createApplication(options={}) {
 }
 if(process.argv[1]&&fs.realpathSync(process.argv[1])===fileURLToPath(import.meta.url)){
   const app=createApplication();app.server.listen(Number(process.env.PORT||9899),process.env.HOST||'0.0.0.0',()=>{
-    console.log('Backup Impresa 0.2.0 in ascolto');app.startScheduler();
+    console.log('Backup Impresa 0.2.1 in ascolto');app.startScheduler();
   });
   let stopping=false;
   const stop=()=>{if(stopping)return;stopping=true;app.close();

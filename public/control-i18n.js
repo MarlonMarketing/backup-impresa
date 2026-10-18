@@ -1,4 +1,24 @@
 const rows = {
+  backupMaxAge: [
+    "Maximum Oracle backup age in hours (1–720)",
+    "Età massima backup Oracle in ore (1–720)",
+    "Antigüedad máxima de copias Oracle en horas (1–720)",
+  ],
+  backupAgeHelp: [
+    "Checks when the remote backup completed, not when it was downloaded. Default: 30 hours.",
+    "Controlla quando è terminato il backup remoto, non quando è stato scaricato. Valore iniziale: 30 ore.",
+    "Comprueba cuándo terminó la copia remota, no cuándo se descargó. Valor inicial: 30 horas.",
+  ],
+  requireSiteBackups: [
+    "Require recent Virtualmin site backups",
+    "Richiedi backup recenti dei siti Virtualmin",
+    "Exigir copias recientes de sitios Virtualmin",
+  ],
+  requireDockerBackups: [
+    "Require recent Docker and host backups",
+    "Richiedi backup recenti di Docker e configurazioni host",
+    "Exigir copias recientes de Docker y configuración del servidor",
+  ],
   keepDaily: [
     "Daily snapshots to keep (1–365)",
     "Snapshot giornalieri da conservare (1–365)",

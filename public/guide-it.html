@@ -16,7 +16,7 @@
 printf &#x27;Il mio primo backup di prova\n&#x27; | sudo tee /srv/backup-impresa/source/ciao.txt &gt;/dev/null
 sudo touch /srv/backup-impresa/source/.backup-impresa-source
 printf &#x27;backup-usb-v1\n&#x27; | sudo tee /srv/backup-impresa/target/.backup-impresa-target &gt;/dev/null
-git clone --branch v0.2.0 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
+git clone --branch v0.2.1 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
 cd backup-impresa
 cp .env.example .env
 chmod 600 .env
@@ -31,7 +31,7 @@ docker compose exec backup-impresa cat /data/setup-token</code></pre>
 <li>Prepara le stesse cartelle e i marcatori <strong>sul server Docker</strong>, non sul PC dal quale apri il browser.</li>
 <li>In Portainer scegli l’ambiente, poi <strong>Stacks → Add stack → Repository</strong>.</li>
 <li>Nome stack: <code>backup-impresa</code>. Repository: <code>https://github.com/MarlonMarketing/backup-impresa</code>.</li>
-<li>Riferimento: <code>refs/tags/v0.2.0</code>. File Compose: <code>compose.yaml</code>.</li>
+<li>Riferimento: <code>refs/tags/v0.2.1</code>. File Compose: <code>compose.yaml</code>.</li>
 <li>Riporta i valori di <code>.env.example</code> nelle variabili dello stack e inserisci i percorsi reali. <code>TARGET_ID</code> deve coincidere con il contenuto del marcatore di destinazione.</li>
 <li>Distribuisci lo stack. Apri la console del container e usa <code>cat /data/setup-token</code> per completare il primo accesso.</li>
 </ol>
@@ -60,6 +60,7 @@ docker compose exec backup-impresa cat /data/setup-token</code></pre>
 <p>Il formato <strong>File normali</strong> scarica una cartella e conserva le versioni dei file sostituiti. Esegui poi Verifica. Non prepara database. <strong>Backup nativi Oracle</strong> usa i manifest JSON di completamento prodotti dai nostri script Oracle: scarica le esecuzioni complete e verifica ogni file elencato mediante SHA256. Non è una ricerca universale dei siti Virtualmin. Dopo il download nel pannello compaiono i siti e i container dichiarati nei manifest.</p>
 <p>I download rimangono a casa anche quando Oracle elimina i propri backup vecchi. La pulizia del catalogo temporaneo non elimina gli archivi scaricati. La cancellazione automatica dei download non è attiva: controlla lo spazio.</p>
 <p>Puoi abilitare anche la verifica settimanale di ogni attività, con giorno e orario distinti. È disattivata inizialmente. Le copie automatiche che usano una sorgente remota pianificata aspettano un download riuscito nella giornata locale.</p>
+<p>Le attività Oracle richiedono inizialmente un backup recente sia dei siti sia di Docker/host. L’età massima è 30 ore e si modifica nell’attività (1–720); disattiva una categoria soltanto se volutamente non la proteggi. Categorie assenti, date non valide/future o backup sorgenti troppo vecchi fanno fallire il lavoro, anche se un vecchio archivio viene trasferito correttamente.</p>
 <h2>6. Scegli i dischi fisici</h2>
 <p>Inizialmente download e repository locali sono nel volume dati dell’applicazione. È una scelta utile per provare senza modificare un’installazione esistente, ma può riempire il disco di sistema e non rappresenta un disco indipendente.</p>
 <p>Per l’uso reale impiega <a href="https://github.com/MarlonMarketing/backup-impresa/blob/v0.2.0/compose.storage.yaml">compose.storage.yaml</a> con cartelle dedicate. Dopo aver verificato i montaggi, crea nella cartella dei download il file <code>.backup-impresa-staging</code> con contenuto <code>backup-staging-v1</code>, e nella cartella dei repository <code>.backup-impresa-repositories</code> con contenuto <code>backup-repositories-v1</code>. Imposta <code>STAGING_PATH</code> e <code>REPOSITORIES_PATH</code> in <code>.env</code>, poi:</p>
