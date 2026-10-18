@@ -27,7 +27,7 @@ El segundo debe coincidir con `TARGET_ID`. No lo crees en una carpeta alternativ
 Requiere Docker Engine, Compose v2 y git:
 
 ```sh
-git clone --branch v0.3.0 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
+git clone --branch v0.4.0 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
 cd backup-impresa
 cp .env.example .env
 chmod 600 .env
@@ -108,3 +108,7 @@ Abre `http://127.0.0.1:9899` mientras el túnel está conectado. También puedes
 Crea tu cuenta y una tarea sin programación. Ejecuta **Simular → Copiar ahora → Verificar → Recuperar copia** y compara el archivo recuperado. Configura y prueba correo/Telegram antes de programar. Necesitas supervisión externa para detectar una VPS apagada.
 
 Para actualizar conserva estado y credenciales. Docker debe recrearse con los mismos volúmenes; el instalador nativo solo sirve para instalaciones nuevas. Sigue las [instrucciones de actualización](INSTALL.md#updates-and-removal). No hay un desinstalador que borre automáticamente los datos de backup.
+
+## Connections / Collegamenti / Conexiones (0.4)
+
+See [English](CONNECTIONS.en.md), [Italiano](CONNECTIONS.it.md), [Español](CONNECTIONS.es.md). Native installation additionally needs a recent Rclone (1.75.2 tested; check `rclone help backend smb` for SMB). The Docker image includes the pinned Rclone binary. On a native host set LOCAL_CONNECTOR_ROOTS to the actual mounted paths and allow them in the systemd filesystem sandbox; use dedicated subfolders. Never grant access to the entire host.

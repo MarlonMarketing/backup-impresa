@@ -14,10 +14,10 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - name: Build
         run: |
-          docker build -t backup-impresa-ci -t backup-impresa:0.3.0-test .
+          docker build -t backup-impresa-ci -t backup-impresa:0.4.0-test .
           docker build -f Dockerfile.test -t backup-impresa-fixtures .
       - name: Integration and safety tests
-        run: docker run --rm --network none --memory 1g --cpus 2 --entrypoint node backup-impresa-fixtures --test --test-concurrency=1 test/core.test.mjs test/server.test.mjs test/i18n.test.mjs test/control.test.mjs
+        run: docker run --rm --network none --memory 1g --cpus 2 --entrypoint node backup-impresa-fixtures --test --test-concurrency=1 test/core.test.mjs test/server.test.mjs test/i18n.test.mjs test/control.test.mjs test/extended.test.mjs
       - name: Validate Compose
         run: |
           docker compose config --quiet
@@ -29,7 +29,11 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y restic rsync openssh-client
+          sudo apt-get install -y restic rsync openssh-client rclone
+          fixture=$(docker create backup-impresa-ci)
+          docker cp "$fixture:/usr/local/bin/rclone" /tmp/backup-impresa-rclone
+          docker rm "$fixture"
+          sudo install -m 0755 /tmp/backup-impresa-rclone /usr/local/bin/rclone
           sudo ln -sf "$(command -v node)" /usr/local/bin/node
           bash -n deploy/install-native.sh
           sudo env PATH="$PATH" bash deploy/install-native.sh

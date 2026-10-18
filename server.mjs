@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { Store, Engine, validateJob, dueJobs, idPattern } from './lib/core.mjs';
 import { Notifier } from './lib/notify.mjs';
 import { Control } from './lib/control.mjs';
+import {Gateway} from './lib/gateway.mjs';
 
 const base=path.dirname(fileURLToPath(import.meta.url));
 const contentTypes={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8'};
@@ -32,8 +33,10 @@ export function createApplication(options={}) {
   const engine=options.engine||new Engine({store,sources,dataDir,targetRoot:env.TARGET_ROOT||'/destinations/usb',
     targetId:env.TARGET_ID||'impresa-usb-v1',restoreRoot:env.RESTORE_ROOT||'/restores',
     minFreeBytes:Number(env.MIN_FREE_GB??10)*1024**3,notify:run=>notifier.send(run)});
-  const control=new Control({store,dataDir,sources,restoreRoot:env.RESTORE_ROOT||'/restores',env,runner:options.commandRunner,legacyBusy:()=>Boolean(engine.active||engine.queue?.length),legacyTasks:()=>store.state.jobs.map(j=>({id:'legacy:'+j.id,name:j.name,type:'local'})),legacyRun:(id,mode)=>engine.enqueue(store.state.jobs.find(j=>j.id===id),mode,{},'n8n'),notify:run=>{if(!options.notifier)notifier.env=control.effectiveEnv();return notifier.send(run);}});
+  let gateway;
+  const control=new Control({store,dataDir,sources,restoreRoot:env.RESTORE_ROOT||'/restores',env,runner:options.commandRunner,legacyBusy:()=>Boolean(engine.active||engine.queue?.length||gateway?.transports.active),legacyTasks:()=>store.state.jobs.map(j=>({id:'legacy:'+j.id,name:j.name,type:'local'})),legacyRun:(id,mode)=>{if(gateway?.transports.active)throw Error('Another operation is active.');return engine.enqueue(store.state.jobs.find(j=>j.id===id),mode,{},'n8n');},notify:run=>{if(!options.notifier)notifier.env=control.effectiveEnv();return notifier.send(run);}});
   if(!options.notifier){notifier.env=control.effectiveEnv();notifier.webhookTransport=event=>control.webhook(event);engine.notify=run=>{notifier.env=control.effectiveEnv();return notifier.send(run);};}
+  gateway=new Gateway({store,control,engine,env,sources,notifier,runner:options.commandRunner});
   function syncRemoteSources(){for(const task of control.state.tasks.filter(t=>t.type==='pull'))if(!sources.some(s=>s.id==='remote:'+task.id))sources.push({id:'remote:'+task.id,name:task.name+' · SSH',path:path.join(control.staging,task.id),requiredPaths:['.backup-impresa-complete'],producerId:task.id});}
   syncRemoteSources();
   const tokenFile=path.join(dataDir,'setup-token');
@@ -47,16 +50,17 @@ export function createApplication(options={}) {
   const sessions=new Map(), attempts=new Map();
   let timer,watchdogBusy=false;
   const cookieSecure=env.COOKIE_SECURE==='true';
-  function send(res,status,body){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(localizePayload(body,res.backupLanguage)));}
+  function send(res,status,body){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(localizePayload(res.statusPayload?gateway.redactStatus(body,res.actor):body,res.backupLanguage)));}
   async function readBody(req){
+    if(req.cachedBody)return req.cachedBody;
     let size=0;const chunks=[];
     for await(const chunk of req){size+=chunk.length;if(size>65536)throw Error('Richiesta troppo grande');chunks.push(chunk);}
-    try{return JSON.parse(Buffer.concat(chunks).toString('utf8')||'{}');}catch{throw Error('JSON non valido');}
+    try{return req.cachedBody=JSON.parse(Buffer.concat(chunks).toString('utf8')||'{}');}catch{throw Error('JSON non valido');}
   }
   function session(req){
     const value=(req.headers.cookie||'').split(';').map(s=>s.trim()).find(s=>s.startsWith('backup_session='))?.slice(15);
     const item=sessions.get(value);
-    if(!item||item.expires<Date.now()){if(item)sessions.delete(value);return null;}return {...item,key:value};
+    if(!item||item.expires<Date.now()){if(item)sessions.delete(value);return null;}if(!gateway.access.resolveSession(item)){sessions.delete(value);return null;}return {...item,key:value};
   }
   function sameOrigin(req){
     if(req.headers['sec-fetch-site']==='cross-site')return false;
@@ -78,7 +82,9 @@ export function createApplication(options={}) {
     res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
     const url=new URL(req.url,'http://localhost');
     try{
-      if(req.method==='GET'&&url.pathname==='/api/health')return send(res,200,{status:'ok',version:'0.3.0'});
+      if(url.pathname==='/mcp'||url.pathname.startsWith('/api/v1/')){const r=await gateway.machine(req,url,readBody);return send(res,r.status,r.body);}
+      if(req.method==='POST'&&url.pathname==='/api/access/accept'){if(!sameOrigin(req)||!rateLimit(req))return send(res,403,{error:'Request rejected.'});return send(res,200,gateway.access.accept(await readBody(req),passwordHash));}
+      if(req.method==='GET'&&url.pathname==='/api/health')return send(res,200,{status:'ok',version:'0.4.0'});
       if(req.method==='GET'&&url.pathname==='/api/auth'){
         const current=session(req);return send(res,200,{setup:!store.state.admin,authenticated:Boolean(current),csrf:current?.csrf||null});
       }
@@ -94,16 +100,19 @@ export function createApplication(options={}) {
           store.state.admin={username:body.username,password:passwordHash(body.password)};store.save();
           fs.rmSync(tokenFile,{force:true}); setupToken='';return send(res,200,{ok:true});
         }
-        const valid=typeof body.password==='string'&&body.password.length<=200&&body.username===store.state.admin?.username&&passwordMatches(body.password,store.state.admin.password);
+        const invited=gateway.access.state.users.find(u=>u.username===body.username&&!u.disabled);
+        const ownerValid=typeof body.password==='string'&&body.password.length<=200&&body.username===store.state.admin?.username&&passwordMatches(body.password,store.state.admin.password);
+        const valid=ownerValid||(invited&&typeof body.password==='string'&&body.password.length<=200&&passwordMatches(body.password,invited.password));
         if(!valid)return send(res,401,{error:'Credenziali non valide'});
         for(const[k,v]of sessions)if(v.expires<Date.now())sessions.delete(k);
         const key=crypto.randomBytes(32).toString('hex'),csrf=crypto.randomBytes(24).toString('hex');
-        sessions.set(key,{csrf,expires:Date.now()+8*3600000});
+        sessions.set(key,{csrf,userId:ownerValid?null:invited.id,expires:Date.now()+8*3600000});
         res.setHeader('Set-Cookie',`backup_session=${key}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800${cookieSecure?'; Secure':''}`);
         return send(res,200,{ok:true,csrf});
       }
       if(!url.pathname.startsWith('/api/')){
-        const routes={'/shell.js':'shell.js','/shell-i18n.js':'shell-i18n.js','/wizard.js':'wizard.js','/shell.css':'shell.css','/':'index.html','/i18n.js':'i18n.js','/app.js':'app.js','/guide/en':'guide-en.html','/guide/it':'guide-it.html','/guide/es':'guide-es.html','/control.js':'control.js','/control-i18n.js':'control-i18n.js','/style.css':'style.css'};
+        const extendedGuide=/^\/guide\/(en|it|es)\/(connections|agents|access)$/.exec(url.pathname);if(extendedGuide&&req.method==='GET'){res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-cache'});return fs.createReadStream(path.join(base,'public','guide-'+extendedGuide[2]+'-'+extendedGuide[1]+'.html')).pipe(res);}
+        const routes={'/extended.js':'extended.js','/extended-i18n.js':'extended-i18n.js','/shell.js':'shell.js','/shell-i18n.js':'shell-i18n.js','/wizard.js':'wizard.js','/shell.css':'shell.css','/':'index.html','/i18n.js':'i18n.js','/app.js':'app.js','/guide/en':'guide-en.html','/guide/it':'guide-it.html','/guide/es':'guide-es.html','/control.js':'control.js','/control-i18n.js':'control-i18n.js','/style.css':'style.css'};
         const file=routes[url.pathname];if(!file||req.method!=='GET')return send(res,404,{error:'Non trovato'});
         res.writeHead(200,{'Content-Type':contentTypes[path.extname(file)],'Cache-Control':'no-cache'});
         return fs.createReadStream(path.join(base,'public',file)).pipe(res);
@@ -116,12 +125,16 @@ export function createApplication(options={}) {
       }
       const auth=session(req);if(!auth)return send(res,401,{error:'Accesso richiesto'});
       if(req.method!=='GET'&&(!sameOrigin(req)||req.headers['x-csrf-token']!==auth.csrf))return send(res,403,{error:'Richiesta non valida. Ricaricare la pagina.'});
+      const actor=gateway.access.resolveSession(auth);res.actor=actor;
+      const extended=await gateway.sessionRoute(req,url,actor,readBody);if(extended!==undefined)return send(res,200,extended);
+      gateway.legacyPermission(actor,url,req.method,req.method==='GET'?null:await readBody(req));
       if(req.method==='POST'&&url.pathname==='/api/logout'){
         sessions.delete(auth.key);res.setHeader('Set-Cookie','backup_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');return send(res,200,{ok:true});
       }
       if(req.method==='GET'&&url.pathname==='/api/status'){
+        res.statusPayload=true;
         let target;try{target={online:true,...engine.targetCheck()};delete target.root;}catch(e){target={online:false,error:e.message};}
-        return send(res,200,{version:'0.3.0',timezone,pilot:env.PILOT_MODE==='true',targetName:env.TARGET_NAME||'Backup destination',sources:sources.map(s=>({id:s.id,name:s.name})),control:control.publicState(),
+        return send(res,200,{version:'0.4.0',timezone,pilot:env.PILOT_MODE==='true',targetName:env.TARGET_NAME||'Backup destination',sources:sources.map(s=>({id:s.id,name:s.name})),control:control.publicState(),
           target,jobs:store.state.jobs,runs:store.state.runs.slice(0,200),alerts:store.state.alerts,
           active:engine.active,notifications:notifier.channels(),policies:{delete:false,versions:'Conservate tutte; nessuna pulizia automatica',catchup:'Esegue il lavoro giornaliero arretrato della giornata alla riaccensione'}});
       }
@@ -143,7 +156,7 @@ export function createApplication(options={}) {
         store.save();return send(res,200,{job});
       }
       if(req.method==='POST'&&url.pathname==='/api/run'){
-        if(control.active||control.queue.length)throw Error('Another operation is active. Wait for it to finish.');
+        if(control.active||control.queue.length||gateway.transports.active)throw Error('Another operation is active. Wait for it to finish.');
         const body=await readBody(req),job=store.state.jobs.find(j=>j.id===body.jobId);
         if(!job)throw Error('Lavoro non trovato');
         if(body.mode==='restore'&&typeof body.relative!=='string')throw Error('Percorso recupero obbligatorio');
@@ -156,18 +169,19 @@ export function createApplication(options={}) {
       }
       if(req.method==='POST'&&url.pathname==='/api/notifications/test')return send(res,200,await notifier.send({name:'Prova manuale',mode:'test',status:'success',finishedAt:new Date().toISOString()},true));
       return send(res,404,{error:'Operazione non disponibile'});
-    }catch(e){if(!res.headersSent)send(res,400,{error:e.message});else res.end();}
+    }catch(e){if(!res.headersSent)send(res,e.status||400,{error:e.message});else res.end();}
   });
   server.requestTimeout=30000;server.headersTimeout=15000;
   async function tick(now=new Date()){
     for(const {job,mode,date}of dueJobs(store.state.jobs,now,timezone)){
-      if(control.active||control.queue.length||store.state.runs.some(r=>r.jobId===job.id&&['queued','running'].includes(r.status)))continue;
+      if(control.active||control.queue.length||gateway.transports.active||store.state.runs.some(r=>r.jobId===job.id&&['queued','running'].includes(r.status)))continue;
       const source=sources.find(s=>s.id===job.sourceId),producer=control.state.tasks.find(t=>t.id===source?.producerId);
       if(producer?.enabled&&!control.state.runs.some(r=>r.taskId===producer.id&&r.mode==='pull'&&r.status==='success'&&new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(r.finishedAt))===date))continue;
       try{engine.enqueue(job,mode,{},'schedule');job.lastScheduled[mode]=date;store.save();}
       catch(e){store.alert(`Pianificazione ${job.name}: ${e.message}`);}
     }
     control.tick(now,timezone);
+    gateway.transports.tick(now,timezone);
     await control.retryWebhooks();
     await control.monitor(now);
     // A second, independent check within the application detects failed/stale copies.
@@ -190,16 +204,16 @@ export function createApplication(options={}) {
     }finally{watchdogBusy=false;}
   }
   function startScheduler(){timer=setInterval(()=>tick().catch(e=>store.alert(e.message)),60000);timer.unref();tick().catch(e=>store.alert(e.message));}
-  return {server,store,engine,control,tick,startScheduler,close:()=>{clearInterval(timer);server.close();}};
+  return {server,store,engine,control,gateway,tick,startScheduler,close:()=>{clearInterval(timer);server.close();}};
 }
 if(process.argv[1]&&fs.realpathSync(process.argv[1])===fileURLToPath(import.meta.url)){
   const app=createApplication();app.server.listen(Number(process.env.PORT||9899),process.env.HOST||'0.0.0.0',()=>{
-    console.log('Backup Impresa 0.3.0 in ascolto');app.startScheduler();
+    console.log('Backup Impresa 0.4.0 in ascolto');app.startScheduler();
   });
   let stopping=false;
   const stop=()=>{if(stopping)return;stopping=true;app.close();
-    const wait=setInterval(()=>{if(!app.engine.active&&!app.control.active){clearInterval(wait);process.exit(0);}},500);wait.unref();
-    if(!app.engine.active&&!app.control.active)process.exit(0);
+    const wait=setInterval(()=>{if(!app.engine.active&&!app.control.active&&!app.gateway.transports.active){clearInterval(wait);process.exit(0);}},500);wait.unref();
+    if(!app.engine.active&&!app.control.active&&!app.gateway.transports.active)process.exit(0);
     setTimeout(()=>process.exit(1),25000).unref();
   };
   process.on('SIGTERM',stop);process.on('SIGINT',stop);

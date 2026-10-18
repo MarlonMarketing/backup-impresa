@@ -1,3 +1,5 @@
+> Legacy integration guide (0.3). For the new scoped API and MCP use [the 0.4 guide](AGENTS.en.md). Existing endpoints remain compatible.
+
 # External agents and the backup API
 
 [Italiano](AGENTS-API.it.md) · [Español](AGENTS-API.es.md)

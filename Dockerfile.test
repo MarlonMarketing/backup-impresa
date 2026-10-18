@@ -1,4 +1,4 @@
-FROM backup-impresa:0.3.0-test
+FROM backup-impresa:0.4.0-test
 # SSH daemon exists ONLY in the disposable test image; never publish/deploy this image.
-RUN apt-get update && apt-get install -y --no-install-recommends openssh-server \
+RUN apt-get update && apt-get install -y --no-install-recommends openssh-server python3-pyftpdlib python3-openssl samba \
     && rm -rf /var/lib/apt/lists/* && mkdir -p /run/sshd && passwd -d root

@@ -13,6 +13,8 @@ A self-hosted backup dashboard for **readable file copies, SSH server downloads 
 
 ![Dashboard using demonstration data](docs/screenshot.png)
 
+**New in 0.4:** graphical connections, versioned/protected remote backups, delegated users, scoped API/MCP tokens and owner-reviewed agent proposals. [Release notes](docs/RELEASE-0.4.0.md).
+
 ## What it does
 
 - Italian, English and Spanish interface and guided practical examples.
@@ -45,7 +47,7 @@ Step-by-step installation: **[English](docs/INSTALL.md) · [Italiano](docs/INSTA
 
 1. Prepare three host directories: source, destination and restores. On an external drive, **verify the actual disk is mounted before creating directories or markers**. Check with `findmnt -T /your/destination`. Do not create a destination marker on an unmounted fallback directory.
 2. In the source directory create an empty `.backup-impresa-source`. In the destination directory create `.backup-impresa-target` containing `backup-usb-v1` followed by a newline (or your chosen `TARGET_ID`). These markers are safety checks; they do not replace mount monitoring.
-3. In Portainer open **Stacks → Add stack → Repository**. Use `https://github.com/MarlonMarketing/backup-impresa`, reference `refs/tags/v0.3.0`, Compose path `compose.yaml`.
+3. In Portainer open **Stacks → Add stack → Repository**. Use `https://github.com/MarlonMarketing/backup-impresa`, reference `refs/tags/v0.4.0`, Compose path `compose.yaml`.
 4. Set `SOURCE_PATH`, `TARGET_PATH`, `RESTORE_PATH`, `TARGET_ID`, `TZ` and `BIND_ADDRESS` under environment variables. Use the server's LAN address for remote LAN access. Default `127.0.0.1` accepts access from the host only. Container root needs source read and destination/restore write permissions; an unprivileged LXC has its own UID mapping. Do not fix this by making all files world-writable.
 5. Deploy. In the container console run `cat /data/setup-token`. Open `http://YOUR_SERVER:9899`, select your language and create your account with that token. The token file is removed after setup. Do not publish it.
 6. Create a job with schedules disabled. Run **Dry run → Copy now → Verify → recover a test file**, then compare the restored file with the original. Only then enable schedules.
@@ -61,7 +63,7 @@ With Docker Engine and Compose v2 installed, prepare the directories/markers des
 docker compose -f compose.yaml -f compose.local.yaml up -d --build
 ```
 
-Published images are versioned at `ghcr.io/marlonmarketing/backup-impresa:0.3.0`. The supplied image is Linux amd64. Other architectures require a local build. Versions are deliberately pinned; updates are manual.
+Published images are versioned at `ghcr.io/marlonmarketing/backup-impresa:0.4.0`. The supplied image is Linux amd64. Other architectures require a local build. Versions are deliberately pinned; updates are manual.
 
 ## Copy and version semantics
 
@@ -85,7 +87,7 @@ The internal health check and stale-run warning cannot alert when the container 
 
 ```sh
 docker build -t backup-impresa-test .
-docker tag backup-impresa-test backup-impresa:0.3.0-test
+docker tag backup-impresa-test backup-impresa:0.4.0-test
 docker build -f Dockerfile.test -t backup-impresa-fixtures .
 docker run --rm --network none --memory 1g --entrypoint node backup-impresa-fixtures --test --test-concurrency=1 test/*.test.mjs
 ```
@@ -105,3 +107,13 @@ Existing schema-1 jobs are preserved. New tasks are disabled by default. No repo
 ## Interface and agents
 
 Sidebar, overview and guided configuration: [user guide](docs/GUIDE.en.md). [Agent API capabilities](docs/AGENTS-API.md). AI and MCP are separate future releases.
+
+## Connections, delegated access and agents (0.4)
+
+Connections: [English](docs/CONNECTIONS.en.md) · [Italiano](docs/CONNECTIONS.it.md) · [Español](docs/CONNECTIONS.es.md)
+
+API / MCP and Codex: [English](docs/AGENTS.en.md) · [Italiano](docs/AGENTS.it.md) · [Español](docs/AGENTS.es.md)
+
+Permissions: [English](docs/ACCESS.en.md) · [Italiano](docs/ACCESS.it.md) · [Español](docs/ACCESS.es.md)
+
+Existing jobs, destinations and integration tokens are preserved. New connector schedules are OFF. This is self-hosted software, not a shared multi-tenant SaaS. No AI model is embedded. External AI clients receive only authorized tool outputs.

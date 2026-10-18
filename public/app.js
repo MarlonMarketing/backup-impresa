@@ -1,3 +1,4 @@
+import {mountExtended} from '/extended.js';
 import {mountShell} from '/shell.js';
 import {guideForm} from '/wizard.js';
 import {mountControl} from '/control.js';
@@ -19,12 +20,15 @@ async function refresh(){if($('#dashboard').hidden)return;state=await api('/api/
 const shell=mountShell({language:()=>language,onNewJob:()=>openJob()});
 let resetJobWizard;
 const renderControl=mountControl({api,refresh,message,language:()=>language});
+const renderExtended=mountExtended({api,refresh,message,language:()=>language});
 function render(){
   renderControl(state.control,state.sources);
   shell.render(state);
+  renderExtended(state);
+  document.body.classList.toggle('restricted-account',!state.access.principal.owner);
   $('#clock').textContent=state.timezone;
-  const allRuns=[...state.runs,...(state.control?.runs||[])].sort((a,b)=>String(b.finishedAt||b.queuedAt).localeCompare(String(a.finishedAt||a.queuedAt))),copies=allRuns.filter(r=>['copy','pull','backup'].includes(r.mode)),last=copies.find(r=>r.status==='success'),failures=allRuns.filter(r=>['failed','interrupted'].includes(r.status)).length;
-  $('#stats').innerHTML=[[state.targetName,state.target.online?t('connected'):t('attention'),state.target.online?t('space',{free:bytes(state.target.free),total:bytes(state.target.total)}):t('writesBlocked')],[t('lastCopy'),last?date(last.finishedAt):t('notRun'),last?.name||t('noCopy')],[t('configuredJobs'),String(state.jobs.length+(state.control?.tasks.length||0)),t('activeSchedules',{n:state.jobs.filter(j=>j.enabled).length+(state.control?.tasks.filter(j=>j.enabled).length||0)})],[t('issues'),String(failures),(state.active||state.control?.active)?t('runningJob'):t('nothingRunning')]].map(([label,value,note])=>`<div class="stat"><span class="label">${esc(label)}</span><div class="value">${esc(value)}</div><small>${esc(note)}</small></div>`).join('');
+  const allRuns=[...state.runs,...(state.control?.runs||[]),...(state.transports?.runs||[])].sort((a,b)=>String(b.finishedAt||b.queuedAt).localeCompare(String(a.finishedAt||a.queuedAt))),copies=allRuns.filter(r=>['copy','pull','backup'].includes(r.mode)),last=copies.find(r=>r.status==='success'),failures=allRuns.filter(r=>['failed','interrupted'].includes(r.status)).length;
+  $('#stats').innerHTML=[[state.targetName,state.target.online?t('connected'):t('attention'),state.target.online?t('space',{free:bytes(state.target.free),total:bytes(state.target.total)}):t('writesBlocked')],[t('lastCopy'),last?date(last.finishedAt):t('notRun'),last?.name||t('noCopy')],[t('configuredJobs'),String(state.jobs.length+(state.control?.tasks.length||0)+(state.transports?.plans.length||0)),t('activeSchedules',{n:state.jobs.filter(j=>j.enabled).length+(state.control?.tasks.filter(j=>j.enabled).length||0)+(state.transports?.plans.filter(j=>j.enabled).length||0)})],[t('issues'),String(failures),(state.active||state.control?.active||state.transports?.active)?t('runningJob'):t('nothingRunning')]].map(([label,value,note])=>`<div class="stat"><span class="label">${esc(label)}</span><div class="value">${esc(value)}</div><small>${esc(note)}</small></div>`).join('');
   $('#target-warning').hidden=state.target.online&&!state.pilot;$('#target-warning').textContent=!state.target.online?t('diskError',{error:state.target.error||''}):t('pilot');
   $('#jobs').innerHTML=state.jobs.length?state.jobs.map(job=>{
     const recent=state.runs.find(r=>r.jobId===job.id),busy=state.runs.some(r=>r.jobId===job.id&&['queued','running'].includes(r.status));

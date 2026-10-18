@@ -1,6 +1,8 @@
+FROM rclone/rclone:1.75.2@sha256:2687085f718d3c628f7fdfb77c52a1d344332aed543110bb88088f2c70d43eb5 AS rclone
 FROM node:24-bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends rsync restic openssh-client ca-certificates \
     && rm -rf /var/lib/apt/lists/*
+COPY --from=rclone /usr/local/bin/rclone /usr/local/bin/rclone
 ENV NODE_ENV=production TZ=Europe/Budapest
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -19,4 +21,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD node -e "fetch('http://127.0.0.1:9899/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
 CMD ["node", "server.mjs"]
 
-LABEL org.opencontainers.image.source="https://github.com/MarlonMarketing/backup-impresa" org.opencontainers.image.licenses="MIT" org.opencontainers.image.version="0.3.0"
+LABEL org.opencontainers.image.source="https://github.com/MarlonMarketing/backup-impresa" org.opencontainers.image.licenses="MIT" org.opencontainers.image.version="0.4.0"

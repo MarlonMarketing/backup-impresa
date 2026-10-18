@@ -1,0 +1,85 @@
+openapi: 3.1.0
+info:
+  title: Backup Impresa scoped service API
+  version: 0.4.0
+  description: Single-owner self-hosted API. Tokens authorize exact resources and actions. No credential retrieval, arbitrary shell, archive initialization or deletion endpoint.
+servers:
+  - url: https://backup.example.com
+security:
+  - bearerToken: []
+components:
+  securitySchemes:
+    bearerToken:
+      type: http
+      scheme: bearer
+      description: Owner-created API-channel token, limited scopes/resources, expiry and revocation.
+  parameters:
+    IdempotencyKey:
+      in: header
+      name: Idempotency-Key
+      required: true
+      schema: {type: string, pattern: '^[A-Za-z0-9_.:-]{8,128}$'}
+  schemas:
+    Error:
+      type: object
+      properties: {error: {type: string}}
+    Run:
+      type: object
+      required: [resource, mode]
+      properties:
+        resource: {type: string, example: 'transport:family-test'}
+        mode: {enum: [copy, pull, backup, preview, verify, verify-pull, check, snapshots, restore]}
+        relative: {type: string}
+        version: {type: string, description: current or a readable version run UUID}
+        versionId: {type: string, description: Legacy readable version identifier}
+        snapshot: {type: string, description: Protected recovery point ID}
+    Proposal:
+      type: object
+      required: [id, name, sourceId, destinationId]
+      properties:
+        id: {type: string, pattern: '^[a-z][a-z0-9-]{0,39}$'}
+        name: {type: string, maxLength: 100}
+        sourceId: {type: string}
+        destinationId: {type: string}
+        format: {enum: [readable, protected]}
+paths:
+  /api/v1/catalog:
+    get:
+      summary: List only authorized plans and locations (read scope)
+      responses:
+        '200': {description: Catalog with plans and locations}
+        '401': {description: Invalid or wrong-channel token}
+        '429': {description: More than 60 authenticated requests per token per minute}
+  /api/v1/status:
+    get:
+      summary: Authorized catalog and run outcomes (read scope)
+      responses:
+        '200': {description: Authorized run status; never vault secrets}
+        '401': {description: Invalid token}
+  /api/v1/run:
+    post:
+      summary: Execute an existing permitted plan (run or restore scope)
+      description: Supported modes depend on the plan type. Legacy protected recovery remains owner-only. Retention and initialization are not exposed. Idempotency receipts are bounded to the latest 1000 scoped requests.
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Run'}
+      responses:
+        '202': {description: Run identifier/status or the previous matching receipt}
+        '400': {description: Invalid mode, unavailable plan, busy engine or conflicting idempotency key}
+        '403': {description: Missing resource/action permission}
+  /api/v1/proposals:
+    post:
+      summary: Submit a disabled draft for owner review (propose on both locations)
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Proposal'}
+      responses:
+        '201': {description: Pending draft, expiry and exact digest; no backup is executed}
+        '400': {description: Invalid draft or existing plan identifier}
+        '403': {description: Resource or action not granted}

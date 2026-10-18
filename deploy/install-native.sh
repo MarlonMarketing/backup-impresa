@@ -4,13 +4,14 @@
 set -euo pipefail
 
 [[ "$EUID" -eq 0 ]] || { echo 'Run with sudo on a Linux systemd host.' >&2; exit 1; }
-for command in node npm rsync restic ssh ssh-keygen ssh-keyscan runuser useradd install systemctl; do
+for command in node npm rsync restic rclone ssh ssh-keygen ssh-keyscan runuser useradd install systemctl; do
   command -v "$command" >/dev/null || { echo "Missing prerequisite: $command" >&2; exit 1; }
 done
 [[ -d /run/systemd/system ]] || { echo 'systemd must be the running service manager.' >&2; exit 1; }
 node -e 'if(Number(process.versions.node.split(".")[0])<22)process.exit(1)' || {
   echo 'Node.js 22 or newer is required; Node.js 24 is recommended.' >&2; exit 1;
 }
+rclone help backend smb >/dev/null 2>&1 || { echo "Install a recent Rclone with SMB support (1.75.2 tested)." >&2; exit 1; }
 source_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 version=$(node -p 'JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).version' "$source_dir/package.json")
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Invalid release version.' >&2; exit 1; }

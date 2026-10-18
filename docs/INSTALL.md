@@ -31,7 +31,7 @@ The destination marker must match `TARGET_ID`. Never create it on a fallback dir
 Requires Docker Engine and the Compose v2 plugin. Clone the versioned release:
 
 ```sh
-git clone --branch v0.3.0 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
+git clone --branch v0.4.0 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
 cd backup-impresa
 cp .env.example .env
 chmod 600 .env
@@ -68,7 +68,7 @@ docker run -d --name backup-impresa \
   --mount type=bind,source=/srv/backup-impresa/source,target=/sources/files,readonly \
   --mount type=bind,source=/srv/backup-impresa/target,target=/destinations/usb \
   --mount type=bind,source=/srv/backup-impresa/restores,target=/restores \
-  ghcr.io/marlonmarketing/backup-impresa:0.3.0
+  ghcr.io/marlonmarketing/backup-impresa:0.4.0
 docker logs --tail 50 backup-impresa
 docker exec backup-impresa cat /data/setup-token
 ```
@@ -137,3 +137,7 @@ Back up configuration/state first and wait for running work to finish. Docker: p
 Native: the installer is for new installs and refuses existing installations. To upgrade, stop the service, stage a reviewed release in a new `/opt/backup-impresa/releases/VERSION` directory, install dependencies as the service account with npm scripts disabled, restore root ownership of code, then repoint `current`. Review release notes and unit changes, verify the service and restart. Preserve `/var/lib/backup-impresa` and the env-file. Do not overwrite the running code in place. Rollback is safe only when state-format compatibility has been checked; otherwise restore the saved matching state too.
 
 To retire an installation, stop/disable its service or container first. Keep state, destination, versions and restores until you have verified they are no longer needed. No uninstall script deletes backup data.
+
+## Connections / Collegamenti / Conexiones (0.4)
+
+See [English](CONNECTIONS.en.md), [Italiano](CONNECTIONS.it.md), [Español](CONNECTIONS.es.md). Native installation additionally needs a recent Rclone (1.75.2 tested; check `rclone help backend smb` for SMB). The Docker image includes the pinned Rclone binary. On a native host set LOCAL_CONNECTOR_ROOTS to the actual mounted paths and allow them in the systemd filesystem sandbox; use dedicated subfolders. Never grant access to the entire host.

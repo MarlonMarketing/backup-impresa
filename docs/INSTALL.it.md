@@ -29,7 +29,7 @@ Il secondo valore deve coincidere con `TARGET_ID`. Non crearlo nella cartella di
 Servono Docker Engine, Compose v2 e git:
 
 ```sh
-git clone --branch v0.3.0 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
+git clone --branch v0.4.0 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
 cd backup-impresa
 cp .env.example .env
 chmod 600 .env
@@ -112,3 +112,7 @@ Apri `http://127.0.0.1:9899` mentre il tunnel è attivo. In alternativa configur
 Crea l'account con il token e un lavoro senza pianificazione. Esegui **Simula → Copia ora → Verifica → Recupera copia**, confrontando il recupero con l'originale. Configura email e Telegram, premi **Invia prova** e soltanto dopo abilita la pianificazione. Un controllo esterno serve per rilevare lo spegnimento della VPS.
 
 Per gli aggiornamenti conserva dati e credenziali e scegli una versione esplicita. Docker va ricreato con gli stessi volumi; l'installatore nativo rifiuta installazioni esistenti: segui la [procedura di aggiornamento manuale](INSTALL.md#updates-and-removal). Nessuna disinstallazione automatica cancella le copie di backup.
+
+## Connections / Collegamenti / Conexiones (0.4)
+
+See [English](CONNECTIONS.en.md), [Italiano](CONNECTIONS.it.md), [Español](CONNECTIONS.es.md). Native installation additionally needs a recent Rclone (1.75.2 tested; check `rclone help backend smb` for SMB). The Docker image includes the pinned Rclone binary. On a native host set LOCAL_CONNECTOR_ROOTS to the actual mounted paths and allow them in the systemd filesystem sandbox; use dedicated subfolders. Never grant access to the entire host.
