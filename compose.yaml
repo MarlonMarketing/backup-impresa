@@ -1,6 +1,6 @@
 services:
   backup-impresa:
-    image: ghcr.io/marlonmarketing/backup-impresa:${BACKUP_VERSION:-0.2.1}
+    image: ghcr.io/marlonmarketing/backup-impresa:${BACKUP_VERSION:-0.2.2}
     container_name: backup-impresa
     init: true
     restart: unless-stopped

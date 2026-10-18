@@ -13,7 +13,7 @@ Portainer è facoltativo. La [guida di installazione in italiano](INSTALL.it.md)
 
 1. Prepara le cartelle sorgente, destinazione e recuperi sul server Docker. Se usi un disco USB, controlla prima con `findmnt -T /percorso/destinazione` che sia davvero montato il disco previsto.
 2. Crea `.backup-impresa-source` nella sorgente. Nella destinazione crea `.backup-impresa-target` contenente `backup-usb-v1`, oppure l'identificativo scelto in `TARGET_ID`. Non creare questo file nella cartella di ripiego di un disco assente.
-3. Apri **Stacks → Add stack → Repository**. Repository: `https://github.com/MarlonMarketing/backup-impresa`; riferimento: `refs/tags/v0.2.1`; file: `compose.yaml`.
+3. Apri **Stacks → Add stack → Repository**. Repository: `https://github.com/MarlonMarketing/backup-impresa`; riferimento: `refs/tags/v0.2.2`; file: `compose.yaml`.
 4. Imposta `SOURCE_PATH`, `TARGET_PATH`, `RESTORE_PATH`, `TARGET_ID`, `TZ=Europe/Rome` e `BIND_ADDRESS` con l'IP LAN del server. Il valore predefinito `127.0.0.1` permette accesso soltanto dal server. Nei container LXC non privilegiati controlla la mappatura UID: non usare permessi aperti a tutti per aggirarla.
 5. Distribuisci lo stack. Nella console del container esegui `cat /data/setup-token`. Apri `http://IP_SERVER:9899`, seleziona italiano e crea l'account. Il token viene rimosso dopo la configurazione.
 6. Crea un lavoro senza pianificazione. Esegui **Simula → Copia ora → Verifica → Recupera copia** di un file di prova. Confronta il recupero con l'originale prima di attivare le pianificazioni.
@@ -27,4 +27,4 @@ La copia usa dimensioni e date dei file; **Verifica** legge i contenuti e contro
 
 Conserva privatamente il volume `/data` e le credenziali dello stack. Backrest e Proxmox continuano a gestire i rispettivi backup. Serve un controllo esterno per segnalare lo spegnimento del pannello. Per accessi esterni usa VPN o HTTPS e `COOKIE_SECURE=true`.
 
-Immagine pubblica: `ghcr.io/marlonmarketing/backup-impresa:0.2.1` (Linux amd64). Per altre architetture usa la compilazione locale descritta nella [guida completa](../README.md). Licenza MIT; segnalazioni e contributi tramite GitHub.
+Immagine pubblica: `ghcr.io/marlonmarketing/backup-impresa:0.2.2` (Linux amd64). Per altre architetture usa la compilazione locale descritta nella [guida completa](../README.md). Licenza MIT; segnalazioni e contributi tramite GitHub.

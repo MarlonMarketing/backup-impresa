@@ -16,7 +16,7 @@
 printf &#x27;My first backup test\n&#x27; | sudo tee /srv/backup-impresa/source/hello.txt &gt;/dev/null
 sudo touch /srv/backup-impresa/source/.backup-impresa-source
 printf &#x27;backup-usb-v1\n&#x27; | sudo tee /srv/backup-impresa/target/.backup-impresa-target &gt;/dev/null
-git clone --branch v0.2.1 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
+git clone --branch v0.2.2 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
 cd backup-impresa
 cp .env.example .env
 chmod 600 .env
@@ -31,7 +31,7 @@ docker compose exec backup-impresa cat /data/setup-token</code></pre>
 <li>Prepare the same folders and markers on the <strong>Docker host</strong>, not your desktop computer.</li>
 <li>In Portainer select the environment, then <strong>Stacks → Add stack → Repository</strong>.</li>
 <li>Name: <code>backup-impresa</code>. Repository: <code>https://github.com/MarlonMarketing/backup-impresa</code>.</li>
-<li>Reference: <code>refs/tags/v0.2.1</code>. Compose file: <code>compose.yaml</code>.</li>
+<li>Reference: <code>refs/tags/v0.2.2</code>. Compose file: <code>compose.yaml</code>.</li>
 <li>Copy the values from <code>.env.example</code> into stack environment variables. Set your real host paths. Keep <code>TARGET_ID</code> equal to the target marker&#x27;s content.</li>
 <li>Deploy. Open the container console and run <code>cat /data/setup-token</code> to complete the first login.</li>
 </ol>
@@ -61,6 +61,7 @@ docker compose exec backup-impresa cat /data/setup-token</code></pre>
 <p>Download files stay on disk independently of remote retention. No automatic download deletion is enabled. The Oracle catalog is refreshed separately; refreshing it never deletes downloaded backup sets.</p>
 <p>You can also enable weekly verification in each task, with its own day and time. It is off for new tasks. Automatic copies using a scheduled remote source wait for a successful download on that local calendar day.</p>
 <p>Oracle tasks require a recent completed backup for both sites and Docker/host by default. The maximum age defaults to 30 hours and can be changed in the task (1–720); disable a category only if you intentionally do not back it up. Missing categories, invalid/future dates or stale source backups fail the download, even when an older archive transfers successfully.</p>
+<p>Independent weekly Docker copies produced by the native Oracle script are recognized even when their copied manifest still names the matching daily folder. A changed manifest for an already verified local set blocks the operation and preserves the local archives; diagnose the source rather than deleting the local verification marker.</p>
 <h2>6. Choose the physical disks</h2>
 <p>By default downloads and local Restic repositories are inside the application state volume. This supports a trial without changing an existing deployment, but can fill the system disk and is not a separate-disk backup.</p>
 <p>For production use <a href="https://github.com/MarlonMarketing/backup-impresa/blob/v0.2.0/compose.storage.yaml">compose.storage.yaml</a> with dedicated host folders. After checking their actual mounts, create <code>.backup-impresa-staging</code> containing <code>backup-staging-v1</code> in the download folder and <code>.backup-impresa-repositories</code> containing <code>backup-repositories-v1</code> in the repository folder. Set <code>STAGING_PATH</code> and <code>REPOSITORIES_PATH</code> in <code>.env</code>, then run:</p>

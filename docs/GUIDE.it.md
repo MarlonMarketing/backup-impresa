@@ -27,7 +27,7 @@ sudo mkdir -p /srv/backup-impresa/source /srv/backup-impresa/target /srv/backup-
 printf 'Il mio primo backup di prova\n' | sudo tee /srv/backup-impresa/source/ciao.txt >/dev/null
 sudo touch /srv/backup-impresa/source/.backup-impresa-source
 printf 'backup-usb-v1\n' | sudo tee /srv/backup-impresa/target/.backup-impresa-target >/dev/null
-git clone --branch v0.2.1 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
+git clone --branch v0.2.2 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
 cd backup-impresa
 cp .env.example .env
 chmod 600 .env
@@ -47,7 +47,7 @@ Per dischi reali controlla prima `findmnt -T /tua/cartella`: deve essere montato
 1. Prepara le stesse cartelle e i marcatori **sul server Docker**, non sul PC dal quale apri il browser.
 2. In Portainer scegli l’ambiente, poi **Stacks → Add stack → Repository**.
 3. Nome stack: `backup-impresa`. Repository: `https://github.com/MarlonMarketing/backup-impresa`.
-4. Riferimento: `refs/tags/v0.2.1`. File Compose: `compose.yaml`.
+4. Riferimento: `refs/tags/v0.2.2`. File Compose: `compose.yaml`.
 5. Riporta i valori di `.env.example` nelle variabili dello stack e inserisci i percorsi reali. `TARGET_ID` deve coincidere con il contenuto del marcatore di destinazione.
 6. Distribuisci lo stack. Apri la console del container e usa `cat /data/setup-token` per completare il primo accesso.
 
@@ -83,6 +83,9 @@ Puoi abilitare anche la verifica settimanale di ogni attività, con giorno e ora
 
 
 Le attività Oracle richiedono inizialmente un backup recente sia dei siti sia di Docker/host. L’età massima è 30 ore e si modifica nell’attività (1–720); disattiva una categoria soltanto se volutamente non la proteggi. Categorie assenti, date non valide/future o backup sorgenti troppo vecchi fanno fallire il lavoro, anche se un vecchio archivio viene trasferito correttamente.
+
+
+Le copie settimanali Docker indipendenti dello script nativo Oracle vengono riconosciute anche quando il manifest copiato indica ancora il giornaliero corrispondente. Un manifest cambiato per un gruppo già verificato a casa blocca il lavoro e conserva gli archivi locali: controlla la sorgente, senza cancellare il marcatore di verifica locale.
 
 ## 6. Scegli i dischi fisici
 

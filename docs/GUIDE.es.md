@@ -27,7 +27,7 @@ sudo mkdir -p /srv/backup-impresa/source /srv/backup-impresa/target /srv/backup-
 printf 'Mi primera copia de prueba\n' | sudo tee /srv/backup-impresa/source/hola.txt >/dev/null
 sudo touch /srv/backup-impresa/source/.backup-impresa-source
 printf 'backup-usb-v1\n' | sudo tee /srv/backup-impresa/target/.backup-impresa-target >/dev/null
-git clone --branch v0.2.1 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
+git clone --branch v0.2.2 --depth 1 https://github.com/MarlonMarketing/backup-impresa.git
 cd backup-impresa
 cp .env.example .env
 chmod 600 .env
@@ -47,7 +47,7 @@ Para un disco real comprueba primero `findmnt -T /tu/carpeta`: debe corresponder
 1. Prepara las mismas carpetas y marcadores **en el servidor Docker**, no en el ordenador del navegador.
 2. En Portainer selecciona el entorno y abre **Stacks → Add stack → Repository**.
 3. Nombre: `backup-impresa`. Repositorio: `https://github.com/MarlonMarketing/backup-impresa`.
-4. Referencia: `refs/tags/v0.2.1`. Archivo Compose: `compose.yaml`.
+4. Referencia: `refs/tags/v0.2.2`. Archivo Compose: `compose.yaml`.
 5. Copia los valores de `.env.example` a las variables del stack e introduce las rutas reales. `TARGET_ID` debe coincidir con el contenido del marcador del destino.
 6. Despliega. Abre la consola del contenedor y ejecuta `cat /data/setup-token` para completar el primer acceso.
 
@@ -83,6 +83,9 @@ También puedes activar la verificación semanal de cada tarea, con día y hora 
 
 
 Las tareas Oracle exigen inicialmente una copia reciente tanto de sitios como de Docker/servidor. La antigüedad máxima es de 30 horas y se cambia en la tarea (1–720); desactiva una categoría solo si intencionadamente no la proteges. Las categorías ausentes, fechas inválidas/futuras o copias de origen antiguas provocan un fallo aunque un archivo anterior se transfiera correctamente.
+
+
+Se reconocen las copias semanales Docker independientes del script nativo Oracle aunque su manifiesto todavía indique la carpeta diaria correspondiente. Si cambia un manifiesto de un conjunto local ya verificado, se bloquea la operación y se conservan los archivos locales: revisa el origen sin borrar el marcador de verificación local.
 
 ## 6. Elige los discos físicos
 

@@ -14,7 +14,7 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - name: Build
         run: |
-          docker build -t backup-impresa-ci -t backup-impresa:0.2.1-test .
+          docker build -t backup-impresa-ci -t backup-impresa:0.2.2-test .
           docker build -f Dockerfile.test -t backup-impresa-fixtures .
       - name: Integration and safety tests
         run: docker run --rm --network none --memory 1g --cpus 2 --entrypoint node backup-impresa-fixtures --test --test-concurrency=1 test/core.test.mjs test/server.test.mjs test/i18n.test.mjs test/control.test.mjs

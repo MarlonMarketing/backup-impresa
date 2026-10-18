@@ -16,6 +16,8 @@ import {
   validateServer,
   validateManifest,
   oracleFreshness,
+  locatedOracleManifest,
+  oracleManifestIdentity,
 } from "../lib/control.mjs";
 import { Vault, command, temporaryFiles } from "../lib/secure.mjs";
 import { createApplication } from "../server.mjs";
@@ -671,21 +673,41 @@ test("real SSH: pinned identity, Oracle manifest transfer, corruption detection 
       path: remote + "/sites-daily/2026-10-01_01-00-00",
     }),
   );
+  const dailyDocker = "docker-daily/2026-10-18_01-00-00";
+  const weeklyDocker = "docker-weekly/2026-10-18_01-00-00";
+  fs.mkdirSync(path.join(remote, dailyDocker), { recursive: true });
+  fs.writeFileSync(path.join(remote, dailyDocker, "site.tar.gz"), content);
+  fs.writeFileSync(
+    path.join(remote, dailyDocker, "COMPLETE.json"),
+    JSON.stringify({
+      ...manifest,
+      path: remote + "/" + dailyDocker,
+      domains: [],
+      containers: ["n8n"],
+    }),
+  );
+  fs.cpSync(path.join(remote, dailyDocker), path.join(remote, weeklyDocker), {
+    recursive: true,
+  });
   control.saveTask({
     id: "oracle",
     name: "Oracle",
     serverId: "oracle",
     profile: "oracle",
-    requireDocker: false,
   });
   const copy = await success(control, { taskId: "oracle", mode: "pull" });
   assert.equal(copy.result.checksumVerified, true);
   assert.equal(
     copy.result.backups.length,
-    1,
+    3,
     "Expired metadata must not request a deleted source set",
   );
-  assert.equal(copy.result.backups[0].domains[0], "example.test");
+  assert(copy.result.backups.some((b) => b.domains.includes("example.test")));
+  assert(
+    fs.existsSync(
+      path.join(control.staging, "oracle", weeklyDocker, "site.tar.gz"),
+    ),
+  );
   await success(control, { taskId: "oracle", mode: "verify-pull" });
   fs.writeFileSync(
     path.join(control.staging, "oracle", runFolder, "site.tar.gz"),
@@ -704,6 +726,29 @@ test("real SSH: pinned identity, Oracle manifest transfer, corruption detection 
     ),
     content,
   );
+  const manifestFile = path.join(remote, mFolder, "COMPLETE.json");
+  fs.writeFileSync(
+    manifestFile,
+    JSON.stringify({
+      ...manifest,
+      completed: new Date(Date.now() + 60000).toISOString(),
+    }),
+  );
+  fs.utimesSync(manifestFile, new Date(), new Date(Date.now() + 3000));
+  const changed = await wait(
+    control.enqueue({ taskId: "oracle", mode: "pull" }),
+  );
+  assert.equal(changed.status, "failed");
+  assert.match(changed.error, /manifest changed/);
+  assert.equal(
+    fs.readFileSync(
+      path.join(control.staging, "oracle", runFolder, "site.tar.gz"),
+      "utf8",
+    ),
+    content,
+  );
+  fs.writeFileSync(manifestFile, JSON.stringify(manifest));
+  fs.utimesSync(manifestFile, new Date(), new Date(Date.now() + 6000));
   const wrong = { ...control.state.servers[0], hostKey: serverBody.hostKey };
   await assert.rejects(
     control.pullCommand(wrong, remote, path.join(root, "bad")),
@@ -797,4 +842,44 @@ test("Oracle age configuration cannot silently disable all source freshness chec
   assert.equal(task.maxBackupAgeHours, 30);
   assert.equal(task.requireSites, true);
   assert.equal(task.requireDocker, true);
+});
+
+test("weekly Docker aliases are exact and verified manifests have a stable identity", () => {
+  const m = {
+    status: "ok",
+    path: "/backups/native/docker-daily/2026-10-18",
+    completed: "2026-10-18T04:00:00Z",
+    files: [{ name: "one", bytes: 1, sha256: "a".repeat(64) }],
+  };
+  const mapped = locatedOracleManifest(
+    m,
+    "/backups/native",
+    "docker-weekly/2026-10-18",
+  );
+  assert.equal(mapped.relative, "docker-weekly/2026-10-18");
+  assert.equal(mapped.path, "/backups/native/docker-weekly/2026-10-18");
+  assert.throws(
+    () =>
+      locatedOracleManifest(m, "/backups/native", "docker-weekly/2026-10-19"),
+    /location/,
+  );
+  assert.throws(
+    () => locatedOracleManifest(m, "/backups/native", "sites-daily/2026-10-18"),
+    /location/,
+  );
+  assert.equal(
+    oracleManifestIdentity(mapped),
+    oracleManifestIdentity({
+      ...mapped,
+      files: mapped.files.map((f) => ({
+        sha256: f.sha256,
+        bytes: f.bytes,
+        name: f.name,
+      })),
+    }),
+  );
+  assert.notEqual(
+    oracleManifestIdentity(mapped),
+    oracleManifestIdentity({ ...mapped, completed: "2026-10-19T00:00:00Z" }),
+  );
 });
