@@ -6,7 +6,7 @@ import path from "node:path";
 import net from "node:net";
 import { spawn } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
-import { Store } from "../lib/core.mjs";
+import { Store, Engine } from "../lib/core.mjs";
 import { Vault, command } from "../lib/secure.mjs";
 import { Transports, connectorPath, PROVIDERS } from "../lib/transports.mjs";
 import { Access } from "../lib/access.mjs";
@@ -126,6 +126,30 @@ function fixture(t, runner) {
   });
   return { root, store, vault, tr };
 }
+test("reusing a read-only preset source keeps its marker and fresh database requirements", async t => {
+  const {tr, root, store} = fixture(t);
+  fs.mkdirSync(path.join(root, "source/backups"));
+  fs.writeFileSync(path.join(root, "source/existing-marker"), "original");
+  const dump = path.join(root, "source/backups/db.sql.gz");
+  fs.writeFileSync(dump, "fixture");
+  const sources = [{id:"existing", name:"Existing", path:path.join(root,"source"),
+    requiredPaths:["existing-marker"], dumpDirectory:"backups", maxDumpAgeHours:26}];
+  const engine = new Engine({store, sources, dataDir:path.join(root,"data"),
+    targetRoot:path.join(root,"destination"), restoreRoot:path.join(root,"restores")});
+  tr.sources = sources;
+  tr.sourceCheck = sourceId => engine.sourceCheck({sourceId});
+  tr.saveConnection({id:"disk", name:"Disk", type:"local"});
+  const input = {id:"preset", name:"Preset", role:"source", connectionId:"disk",
+    path:path.join(root,"source"), presetSourceId:"existing"};
+  assert.throws(()=>tr.saveLocation({...input, path:path.join(root,"destination")}), /matching/);
+  assert.throws(()=>tr.saveLocation({...input, role:"destination"}), /matching/);
+  tr.saveLocation(input);
+  await tr.initializeLocation("preset", "preset");
+  assert(!fs.existsSync(path.join(root,"source/.backup-impresa-location")));
+  assert.equal(fs.readFileSync(path.join(root,"source/existing-marker"),"utf8"),"original");
+  fs.utimesSync(dump, new Date(0), new Date(0));
+  await assert.rejects(tr.initializeLocation("preset","preset"), /Dump database/);
+});
 async function wait(tr, r) {
   for (let i = 0; i < 3000 && tr.active; i++) await delay(20);
   assert(!tr.active, "Run timed out");
@@ -650,7 +674,8 @@ async function freePort() {
   return p;
 }
 
-test("real SMB2: dedicated share, authenticated versioned copy and recovery", async (t) => {
+for (const copyMode of ["verified", "incremental"])
+test("real SMB2: " + copyMode + " authenticated copy, verification, versions and recovery", async (t) => {
   const { tr, root } = await localPlan(t),
     port = await freePort(),
     remote = path.join(root, "smb-share");
@@ -697,10 +722,30 @@ test("real SMB2: dedicated share, authenticated versioned copy and recovery", as
     name: "SMB plan",
     sourceId: "source",
     destinationId: "smb-dest",
+    copyMode,
+    maxRunMinutes: 5,
+    maxVerifyMinutes: 5,
   });
   fs.writeFileSync(path.join(root, "source", "image.txt"), "SMB original");
   await run(tr, { planId: "smb-plan", mode: "copy" });
+  if (copyMode === "incremental") {
+    const runner = tr.runner, calls = [];
+    tr.runner = async (bin, args, opts) => {
+      calls.push(args);
+      if (args.includes("lsjson") || args.includes("copy"))
+        assert(opts.timeout > 0 && opts.timeout <= 300000);
+      return runner(bin, args, opts);
+    };
+    tr.stageCheck = () => { throw Error("Incremental must not use staging"); };
+    const unchanged = await run(tr, { planId: "smb-plan", mode: "copy" });
+    assert.equal(unchanged.result.filesTransferred, 0);
+    assert.equal(unchanged.result.staging, false);
+    assert(!calls.some(args => args.includes("--download")));
+    assert(!calls.some(args => args.includes("copy")));
+    tr.runner = runner;
+  }
   fs.writeFileSync(path.join(root, "source", "image.txt"), "SMB changed!");
+  fs.utimesSync(path.join(root, "source", "image.txt"), new Date(), new Date(Date.now() + 3000));
   const second = await run(tr, { planId: "smb-plan", mode: "copy" });
   await run(tr, { planId: "smb-plan", mode: "verify" });
   assert.equal(
@@ -723,6 +768,46 @@ test("real SMB2: dedicated share, authenticated versioned copy and recovery", as
     ),
     "SMB original",
   );
+  if (copyMode === "incremental") {
+    const runner = tr.runner;
+    fs.writeFileSync(path.join(root, "source/retry.txt"), "pending verification");
+    tr.runner = (bin, args, opts) => {
+      if (args.includes("check") && args.includes("--files-from-raw"))
+        throw Error("Fixture verification interrupted");
+      return runner(bin, args, opts);
+    };
+    const failed = await wait(tr, tr.enqueue({ planId: "smb-plan", mode: "copy" }));
+    assert.equal(failed.status, "failed");
+    assert(fs.existsSync(path.join(root, "data/incremental-pending/smb-plan.json")));
+    tr.runner = runner;
+    const retried = await run(tr, { planId: "smb-plan", mode: "copy" });
+    assert.equal(retried.result.filesTransferred, 1);
+    assert(!fs.existsSync(path.join(root, "data/incremental-pending/smb-plan.json")));
+    fs.unlinkSync(path.join(root, "source/retry.txt"));
+    await run(tr, { planId: "smb-plan", mode: "copy" });
+    assert(fs.existsSync(path.join(remote, "archive/current/smb-plan/retry.txt")),
+      "Source deletion must not delete destination data");
+    fs.writeFileSync(path.join(root, "source/space-test.txt"), "new bytes");
+    tr.runner = (bin, args, opts) => args.includes("about")
+      ? Promise.resolve({stdout: JSON.stringify({free: 0}), stderr: "", code: 0})
+      : runner(bin, args, opts);
+    const full = await wait(tr, tr.enqueue({ planId: "smb-plan", mode: "copy" }));
+    assert.equal(full.status, "failed");
+    assert.match(full.error, /space/);
+    assert(!fs.existsSync(path.join(remote, "archive/current/smb-plan/space-test.txt")));
+    tr.runner = runner;
+    fs.unlinkSync(path.join(root, "source/space-test.txt"));
+    const target = path.join(remote, "archive/current/smb-plan/image.txt");
+    const before = fs.statSync(target);
+    fs.writeFileSync(target, "SMB corrupt!");
+    fs.utimesSync(target, before.atime, before.mtime);
+    const corrupt = await wait(tr, tr.enqueue({ planId: "smb-plan", mode: "verify" }));
+    assert.equal(corrupt.status, "failed", "Full check must detect unchanged-file corruption");
+    const marker = path.join(remote, "archive/.backup-impresa-location");
+    fs.renameSync(marker, marker + ".saved");
+    const missing = await wait(tr, tr.enqueue({ planId: "smb-plan", mode: "copy" }));
+    assert.equal(missing.status, "failed", "Missing target marker must fail closed");
+  }
 });
 async function start(t, binary, args, port) {
   const child = spawn(binary, args, { stdio: "ignore", detached: true });

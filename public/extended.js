@@ -190,6 +190,9 @@ export function mountExtended({ api, refresh, message, language }) {
           ["destination", t("destinationRole")],
         ]) +
         input("path", "folderPath", "text", "", true) +
+        select("presetSourceId", "presetSource", [["", t("newFolderIdentity")],
+          ...state.sources.map(s => [s.id, s.name])]) +
+        `<p class="help-copy">${t("presetHelp")}</p>` +
         `<p class="help-copy">${t("localHelp")}</p>`,
       (f) => api("/api/transports/location", data(f)),
     );
@@ -226,6 +229,12 @@ export function mountExtended({ api, refresh, message, language }) {
           p?.format,
         ) +
         (!p ? input("archivePassword", "archivePassword", "password") : "") +
+        select("copyMode", "copyMode", [
+          ["verified", t("verifiedMode")], ["incremental", t("incrementalMode")],
+        ], p?.copyMode || "verified") +
+        `<p class="help-copy">${t("incrementalHelp")}</p>` +
+        input("maxRunMinutes", "maxRunMinutes", "number", p?.maxRunMinutes ?? 240, true) +
+        input("maxVerifyMinutes", "maxVerifyMinutes", "number", p?.maxVerifyMinutes ?? 720, true) +
         `<p class="help-copy">${t("transportHelp")}</p>` +
         input("time", "dailyAt", "time", p?.time || "18:00") +
         check("enabled", "enableCopy", p?.enabled) +
@@ -261,7 +270,7 @@ export function mountExtended({ api, refresh, message, language }) {
         { title: "sourceStep", fields: ["id", "name", "sourceId"] },
         {
           title: "destinationStep",
-          fields: ["destinationId", "format", "archivePassword"],
+          fields: ["destinationId", "format", "archivePassword", "copyMode", "maxRunMinutes", "maxVerifyMinutes"],
         },
         {
           title: "scheduleStep",
@@ -344,16 +353,9 @@ export function mountExtended({ api, refresh, message, language }) {
       if (action === "edit-plan")
         planForm(state.transports.plans.find((p) => p.id === id));
       if (action === "test") {
-        const c = state.transports.connections.find((c) => c.id === id),
-          folder = prompt(
-            t("folderPath"),
-            state.transports.locations.find((l) => l.connectionId === id)
-              ?.path || "",
-          );
-        if (folder !== null) {
-          details(await api("/api/transports/test", { id, path: folder }));
-          await refresh();
-        }
+        show("testConnection", input("path", "folderPath", "text",
+          state.transports.locations.find((l) => l.connectionId === id)?.path || "", true),
+          (f) => api("/api/transports/test", { id, path: f.elements.path.value }));
       }
       if (action === "initialize") {
         const l = state.transports.locations.find((l) => l.id === id);
@@ -556,7 +558,7 @@ export function mountExtended({ api, refresh, message, language }) {
           .filter((l) => l.role === role)
           .map(
             (l) =>
-              `<article class="notice-row"><span><strong>${esc(l.name)}</strong><code>${esc(l.path || l.id)}</code>${owner ? `<details><summary>${t("folderMarker")}</summary><pre>${esc(l.marker)}</pre><p>${t("initializeHelp")}</p></details>` : ""}</span>${owner ? button("initialize", "initializeLocation", l.id) : ""}</article>`,
+              `<article class="notice-row"><span><strong>${esc(l.name)}</strong><code>${esc(l.path || l.id)}</code><small>${t(l.initialized ? "folderReady" : "folderPending")}</small>${owner ? `<details><summary>${t("folderMarker")}</summary><pre>${esc(l.marker)}</pre><p>${t("initializeHelp")}</p></details>` : ""}</span>${owner ? button("initialize", "initializeLocation", l.id) : ""}</article>`,
           )
           .join("") || `<p>${t("noEntries")}</p>`,
         "connections " + (role === "source" ? "sources" : "destinations"),
